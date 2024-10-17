@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import auto, Enum
 import math
-from typing import Tuple
+from typing import Tuple, Union
 
 
 class BaseOps(Enum):
@@ -43,6 +43,32 @@ class Op:
 
   def __eq__(self, other):
     return isinstance(other, Op) and self.fxn == other.fxn and self.args == other.args
+  
+  @staticmethod
+  def cast(x: Union[Op, int, float]) -> Op:
+    if not isinstance(x, Op) and not isinstance(x, int) and not isinstance(x, float): raise ValueError(f'Cannot cast type {type(x)} to Op')
+    if isinstance(x, Op): return x
+    return Const(x)
+  
+  def __add__(self, other: Union[Op, int, float]) -> Op:
+    other = Op.cast(other)
+    return Add(self, other)
+  
+  def __sub__(self, other: Union[Op, int, float]) -> Op:
+    other = Op.cast(other)
+    return Sub(self, other)
+  
+  def __mul__(self, other: Union[Op, int, float]) -> Op:
+    other = Op.cast(other)
+    return Mul(self, other)
+  
+  def __truediv__(self, other: Union[Op, int, float]) -> Op:
+    other = Op.cast(other)
+    return Div(self, other)
+  
+  def __pow__(self, other: Union[Op, int, float]) -> Op:
+    other = Op.cast(other)
+    return Exp(self, other)
   
   def differentiate(self, var: Var) -> Op: raise NotImplementedError()
 
@@ -174,32 +200,8 @@ class Ln(Op):
     return Log(x, Const(math.e), natrual=True)
   
 if __name__ == '__main__':
-  # Constants
-  const_3 = Const(3) # 3
-  const_5 = Const(5) # 5
-  const_7 = Const(7) # 7
-  const_2 = Const(2) # 2
-  const_4 = Const(4) # 4
+  x = Var('x')
+  y = Var('y')
 
-  # Negate 5
-  neg_5 = Neg(const_5)
-
-  # 3 * -5
-  mul_3_neg5 = Mul(const_3, neg_5)
-
-  # 7 + 2
-  add_7_2 = Add(const_7, const_2)
-
-  # (7 + 2) * 4
-  mul_add4 = Mul(add_7_2, const_4)
-
-  # Final expression: -((3 * -5) + ((7 + 2) * 4))
-  complex_expr = Ln(const_5)
-  print(complex_expr)
-
-  # Print the expression
-  print(f'Expression: {complex_expr}')
-
-  # Evaluate the expression
-  result = complex_expr.eval()
-  print(f'Result: {result}')
+  expr = ((x + 3) / y) * 3 + x * 9
+  print(expr)

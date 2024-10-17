@@ -193,6 +193,41 @@ class TestOpClasses(unittest.TestCase):
     self.assertEqual(Sub(Const(10), Const(2)), Add(Const(10), Neg(Const(2))))
     self.assertEqual(Sub(Const(10), Const(2)).eval(), 8)
 
+  def test_magic_method_add(self):
+    self.assertEqual(Var('x') + 3, Add(Var('x'), Const(3)))
+  
+  def test_magic_method_sub(self):
+    self.assertEqual(Var('x') - 3, Sub(Var('x'), Const(3)))
+
+  def test_magic_method_mul(self):
+    self.assertEqual(Var('x') * 3, Mul(Var('x'), Const(3)))
+
+  def test_magic_method_div(self):
+    self.assertEqual(Var('x') / 3, Div(Var('x'), Const(3)))
+
+  def test_magic_method_pow(self):
+    self.assertEqual(Var('x') ** 3, Exp(Var('x'), Const(3)))
+
+  def test_complex_magic_method_expression(self):
+    expr = Var('x') + Const(2) * (Var('y') - 4)
+    expected = Add(Var('x'), Mul(Const(2), Sub(Var('y'), Const(4))))
+    self.assertEqual(expr, expected)
+
+  def test_nested_magic_method_expression(self):
+    expr = (Var('x') + 1) * (Var('y') - 2)
+    expected = Mul(Add(Var('x'), Const(1)), Sub(Var('y'), Const(2)))
+    self.assertEqual(expr, expected)
+
+  def test_magic_method_order_of_operations(self):
+    expr = Const(2) + Const(3) * Const(4) - Const(5) / Const(5)
+    expected = Sub(Add(Const(2), Mul(Const(3), Const(4))), Div(Const(5), Const(5)))
+    self.assertEqual(expr, expected)
+
+  def test_magic_method_multiple_operations(self):
+    expr = (Var('x') ** 2 + Var('y')) * (Var('z') - 3)
+    expected = Mul(Add(Exp(Var('x'), Const(2)), Var('y')), Sub(Var('z'), Const(3)))
+    self.assertEqual(expr, expected)
+
   def test_random_expressions_without_exponents(self):
     for _ in range(200):
       expr = generate_random_expression(random.randint(1, 12), exponents=False)
