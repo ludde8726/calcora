@@ -1,5 +1,5 @@
 from ops import Op, Const, Add, Div, Exp, Mul, Neg, Sub, Var
-from match import AnyConstLike, AnyOp, MatchedSymbol, Pattern, PatternMatcher
+from match import AnyConstLike, AnyOp, MatchedSymbol, Pattern, PatternMatcher, SymbolicPatternMatcher
 
 import random
 import unittest
@@ -25,35 +25,7 @@ def generate_random_expression(depth: int, exponents: bool = False) -> Op:
 
 class TestPatternMatcher(unittest.TestCase):
   def setUp(self):
-    self.pm = PatternMatcher([
-      Pattern(Add(AnyOp(), Const(0)), lambda x: x), # x + 0 = x
-      Pattern(Add(Const(0), AnyOp()), lambda x: x), # 0 + x = x
-
-      Pattern(Neg(Neg(AnyOp())), lambda x: x), # -(-x) = x
-      Pattern(Neg(Const(0)), lambda _: Const(0)), # -(0) = 0
-
-      Pattern(Mul(AnyOp(), Const(1)), lambda x: x), # 1 * x = x
-      Pattern(Mul(Const(1), AnyOp()), lambda x: x), # x * 1 = x
-
-      Pattern(Mul(AnyOp(), Const(0)), lambda x: Const(0)), # x * 1 = x
-      Pattern(Mul(Const(0), AnyOp()), lambda x: Const(0)), # x * 1 = x
-
-      Pattern(Exp(Const(0), AnyOp()), lambda x: Const(0)),
-      Pattern(Exp(AnyOp(), Const(0)), lambda x: Const(1)),
-
-      Pattern(Mul(MatchedSymbol('x'), Exp(MatchedSymbol(name='x'), 
-                                                  Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
-      
-      Pattern(Add(MatchedSymbol('x'), Mul(AnyConstLike('y'), MatchedSymbol('x'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + yx = (y+1)x where y is a constant
-      Pattern(Add(MatchedSymbol('x'), Mul(MatchedSymbol('x'), AnyConstLike('y'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + xy = (y+1)x where y is a constant
-      Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), MatchedSymbol('x')), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # yx + x = (y+1)x where y is a constant
-      Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), MatchedSymbol('x')), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # xy + x = (y+1)x where y is a constant
-
-      Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), Mul(AnyConstLike('z'), MatchedSymbol('x'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # yx + zx = (y+z)x where y and z are constants
-      Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), Mul(AnyConstLike('z'), MatchedSymbol('x'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # xy + zx = (y+z)x where y and z are constants
-      Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), Mul(MatchedSymbol('x'), AnyConstLike('z'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # yx + xz = (y+z)x where y and z are constants
-      Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), Mul(MatchedSymbol('x'), AnyConstLike('z'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # xy + xz = (y+z)x where y and z are constants
-    ])
+    self.pm = SymbolicPatternMatcher
 
   def test_addition_with_zero(self):
     self.assertEqual(self.pm.match(Add(Const(5), Const(0))), Const(5))

@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import auto, Enum
 import math
 from typing import Tuple
+import types
 
 
 class BaseOps(Enum):
@@ -31,6 +32,9 @@ class BaseOps(Enum):
 class DType(Enum):
   int = auto()
   float = auto()
+
+def ln_repr(self):
+  return f'ln({self.x})'
 
 class Op:
   def __init__(self, *args) -> None:
@@ -115,9 +119,10 @@ class Mul(Op):
     return f'({self.x} * {self.y})'
 
 class Log(Op):
-  def __init__(self, x: Op, base: Op) -> None:
+  def __init__(self, x: Op, base: Op, natrual: bool = False) -> None:
     self.x = x
     self.base = base
+    self.natural = natrual
     super().__init__(x, base)
   
   def eval(self) -> float:
@@ -127,18 +132,18 @@ class Log(Op):
     return Div(
               Sub(
                 Div(
-                  Mul(self.x.differentiate(var), Log(self.base, Const(math.e))), 
+                  Mul(self.x.differentiate(var), Ln(self.base)), 
                   self.x
                 ), 
                 Div(
-                  Mul(self.base.differentiate(var), Log(self.x, Const(math.e))), 
+                  Mul(self.base.differentiate(var), Ln(self.x)), 
                   self.base)
                 ), 
-              Exp(Log(self.base, Const(math.e)), Const(2))
+              Exp(Ln(self.base), Const(2))
             )
   
   def __repr__(self) -> str:
-    return f'log_{self.base}({self.x})'
+    return f'log_{self.base}({self.x})' if not self.natural else f'ln({self.x})'
   
 class Exp(Op):
   def __init__(self, x: Op, y: Op) -> None:
@@ -151,7 +156,7 @@ class Exp(Op):
   
   def differentiate(self, var: Var) -> Op:
     return Add(Mul(Mul(self.y, Exp(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
-               Mul(Mul(Exp(self.x, self.y), Log(self.x, Const(math.e))), self.y.differentiate(var)))
+               Mul(Mul(Exp(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
   
   def __repr__(self) -> str:
     return f'({self.x})^({self.y})'
@@ -164,6 +169,10 @@ class Div(Op):
 class Sub(Op):
   def __new__(cls, x: Op, y: Op) -> Op:
     return Add(x, Neg(y))
+  
+class Ln(Op):
+  def __new__(cls, x: Op) -> Op:
+    return Log(x, Const(math.e), natrual=True)
   
 if __name__ == '__main__':
   # Constants
@@ -186,7 +195,8 @@ if __name__ == '__main__':
   mul_add4 = Mul(add_7_2, const_4)
 
   # Final expression: -((3 * -5) + ((7 + 2) * 4))
-  complex_expr = Neg(Add(mul_3_neg5, mul_add4))
+  complex_expr = Ln(const_5)
+  print(complex_expr)
 
   # Print the expression
   print(f'Expression: {complex_expr}')

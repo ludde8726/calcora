@@ -1,5 +1,5 @@
 from ops import BaseOps
-from ops import Op, Add, Const, Exp, Mul, Neg, Var
+from ops import Op, Add, Const, Exp, Ln, Log, Mul, Neg, Var
 
 from typing import Callable, Dict, Iterable, List, Optional, TypeGuard
 
@@ -13,10 +13,18 @@ class AnyOp(Op):
 def is_any_op(op: Op) -> TypeGuard[AnyOp]:
   return op.fxn == BaseOps.AnyOp
 
+def is_log_op(op: Op) -> TypeGuard[Log]:
+  return op.fxn == BaseOps.Log
+
 def is_const_like(op: Op) -> bool:
   if op.fxn == BaseOps.Const: return True
   if op.fxn == BaseOps.Neg and op.args[0].fxn == BaseOps.Const: return True
   return False
+
+def reconstruct_op(op: Op, *args):
+  if is_log_op(op) and op.natural:
+    return Ln(args[0])
+  return op.__class__(*args)
 
 AnyConstLike = lambda name: AnyOp(name=name, assert_const_like=True)
 MatchedSymbol = lambda name: AnyOp(name=name, match=True)
@@ -31,11 +39,11 @@ class Pattern:
     self._binding = {}
     new_args = [self.match(arg) for arg in op.args] if op.fxn != BaseOps.Const and op.fxn != BaseOps.Var else op.args
     if op.fxn == BaseOps.Const: return op
-    op = op.__class__(*new_args)
+    op = reconstruct_op(op, *new_args)
     if op.fxn == self.pattern.fxn and len(op.args) == len(self.pattern.args):
       if self._match(op, self.pattern):
         return self.replacement(**self._binding) if self._binding else self.replacement(None)
-    return op.__class__(*new_args)
+    return reconstruct_op(op, *new_args)
   
   def _match(self, op: Op, subpattern: Op) -> bool:
     if not (len(op.args) == len(subpattern.args)) and not subpattern.fxn == BaseOps.AnyOp: return False
@@ -92,39 +100,37 @@ def simplify(op: Op) -> Op:
     return Const(*[arg.eval() for arg in simplified_args])
   return op.__class__(*simplified_args)
 
+SymbolicPatternMatcher = PatternMatcher([
+  Pattern(Add(AnyOp(), Const(0)), lambda x: x), # x + 0 = x
+  Pattern(Add(Const(0), AnyOp()), lambda x: x), # 0 + x = x
 
+  Pattern(Neg(Neg(AnyOp())), lambda x: x), # -(-x) = x
+  Pattern(Neg(Const(0)), lambda _: Const(0)), # -(0) = 0
+
+  Pattern(Mul(AnyOp(), Const(1)), lambda x: x), # 1 * x = x
+  Pattern(Mul(Const(1), AnyOp()), lambda x: x), # x * 1 = x
+
+  Pattern(Mul(AnyOp(), Const(0)), lambda x: Const(0)), # x * 1 = x
+  Pattern(Mul(Const(0), AnyOp()), lambda x: Const(0)), # x * 1 = x
+
+  Pattern(Exp(Const(0), AnyOp()), lambda x: Const(0)),
+  Pattern(Exp(AnyOp(), Const(0)), lambda x: Const(1)),
+
+  Pattern(Mul(MatchedSymbol('x'), Exp(MatchedSymbol(name='x'), 
+                                                Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
+  
+  Pattern(Add(MatchedSymbol('x'), Mul(AnyConstLike('y'), MatchedSymbol('x'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + yx = (y+1)x where y is a constant
+  Pattern(Add(MatchedSymbol('x'), Mul(MatchedSymbol('x'), AnyConstLike('y'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + xy = (y+1)x where y is a constant
+  Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), MatchedSymbol('x')), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # yx + x = (y+1)x where y is a constant
+  Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), MatchedSymbol('x')), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # xy + x = (y+1)x where y is a constant
+
+  Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), Mul(AnyConstLike('z'), MatchedSymbol('x'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # yx + zx = (y+z)x where y and z are constants
+  Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), Mul(AnyConstLike('z'), MatchedSymbol('x'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # xy + zx = (y+z)x where y and z are constants
+  Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), Mul(MatchedSymbol('x'), AnyConstLike('z'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # yx + xz = (y+z)x where y and z are constants
+  Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), Mul(MatchedSymbol('x'), AnyConstLike('z'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # xy + xz = (y+z)x where y and z are constants
+])
 if __name__ == '__main__':
-  pm = PatternMatcher([
-    Pattern(Add(AnyOp(), Const(0)), lambda x: x), # x + 0 = x
-    Pattern(Add(Const(0), AnyOp()), lambda x: x), # 0 + x = x
-
-    Pattern(Neg(Neg(AnyOp())), lambda x: x), # -(-x) = x
-    Pattern(Neg(Const(0)), lambda _: Const(0)), # -(0) = 0
-
-    Pattern(Mul(AnyOp(), Const(1)), lambda x: x), # 1 * x = x
-    Pattern(Mul(Const(1), AnyOp()), lambda x: x), # x * 1 = x
-
-    Pattern(Mul(AnyOp(), Const(0)), lambda x: Const(0)), # x * 1 = x
-    Pattern(Mul(Const(0), AnyOp()), lambda x: Const(0)), # x * 1 = x
-
-    Pattern(Exp(Const(0), AnyOp()), lambda x: Const(0)),
-    Pattern(Exp(AnyOp(), Const(0)), lambda x: Const(1)),
-
-    Pattern(Mul(MatchedSymbol('x'), Exp(MatchedSymbol(name='x'), 
-                                                 Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
-    
-    Pattern(Add(MatchedSymbol('x'), Mul(AnyConstLike('y'), MatchedSymbol('x'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + yx = (y+1)x where y is a constant
-    Pattern(Add(MatchedSymbol('x'), Mul(MatchedSymbol('x'), AnyConstLike('y'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + xy = (y+1)x where y is a constant
-    Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), MatchedSymbol('x')), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # yx + x = (y+1)x where y is a constant
-    Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), MatchedSymbol('x')), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # xy + x = (y+1)x where y is a constant
-
-    Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), Mul(AnyConstLike('z'), MatchedSymbol('x'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # yx + zx = (y+z)x where y and z are constants
-    Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), Mul(AnyConstLike('z'), MatchedSymbol('x'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # xy + zx = (y+z)x where y and z are constants
-    Pattern(Add(Mul(AnyConstLike('y'), MatchedSymbol('x')), Mul(MatchedSymbol('x'), AnyConstLike('z'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # yx + xz = (y+z)x where y and z are constants
-    Pattern(Add(Mul(MatchedSymbol('x'), AnyConstLike('y')), Mul(MatchedSymbol('x'), AnyConstLike('z'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # xy + xz = (y+z)x where y and z are constants
-  ])
-
- 
+  pm = SymbolicPatternMatcher
 
   # test_expression = Add(
   #   Add(Mul(Const(1), Neg(Neg(Const(5)))), Const(0)),  # Should simplify to 5
