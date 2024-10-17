@@ -1,5 +1,5 @@
 from ops import Op, Const, Add, Div, Exp, Mul, Neg, Sub, Var
-from match import AnyConstLike, AnyOp, MatchedSymbol, Pattern, PatternMatcher, SymbolicPatternMatcher
+from match import ConstLike, AnyOp, MatchedSymbol, Pattern, PatternMatcher, SymbolicPatternMatcher
 
 import random
 import unittest
@@ -139,6 +139,16 @@ class TestPatternMatcher(unittest.TestCase):
   def test_pattern_xy_plus_xz(self):
     # Test: x2 + x3 = (2 + 3)x = 5x
     self.assertEqual(self.pm.match(Add(Mul(Var('x'), Const(2)), Mul(Var('x'), Const(3)))), Mul(Const(5), Var('x')))
+
+  def test_exponential_add_with_no_exponent(self):
+    self.assertEqual(self.pm.match(Mul(Var('x'), Exp(Var('x'), Const(3)))), Exp(Var('x'), Const(4)))
+    self.assertEqual(self.pm.match(Mul(Exp(Var('x'), Const(3)), Var('x'))), Exp(Var('x'), Const(4)))
+
+  def test_exponential_add(self):
+    self.assertEqual(self.pm.match(Mul(Exp(Var('x'), Const(2)), Exp(Var('x'), Const(3)))), Exp(Var('x'), Add(Const(2), Const(3))))
+
+  def test_exponential_multiply(self):
+    self.assertEqual(self.pm.match(Exp(Exp(Var('x'), Const(2)), Const(3))), Exp(Var('x'), Mul(Const(2), Const(3))))
 
   def test_complex_nested_expression(self):
     # (x + 0 + 1) * (0 + y)(1 * z) + x * x^(-1) + -(-0) + -(-x)

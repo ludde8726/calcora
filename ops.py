@@ -3,7 +3,6 @@ from __future__ import annotations
 from enum import auto, Enum
 import math
 from typing import Tuple
-import types
 
 
 class BaseOps(Enum):
@@ -119,7 +118,7 @@ class Mul(Op):
     return f'({self.x} * {self.y})'
 
 class Log(Op):
-  def __init__(self, x: Op, base: Op, natrual: bool = False) -> None:
+  def __init__(self, x: Op, base: Op = Const(10), natrual: bool = False) -> None:
     self.x = x
     self.base = base
     self.natural = natrual
