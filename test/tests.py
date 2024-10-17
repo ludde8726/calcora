@@ -208,6 +208,15 @@ class TestOpClasses(unittest.TestCase):
   def test_magic_method_pow(self):
     self.assertEqual(Var('x') ** 3, Exp(Var('x'), Const(3)))
 
+  def test_magic_method_rsub(self):
+    self.assertEqual(3 - Var('x'), Sub(Const(3), Var('x')))
+
+  def test_magic_method_rdiv(self):
+    self.assertEqual(3 / Var('x'), Div(Const(3), Var('x')))
+
+  def test_magic_method_rpow(self):
+    self.assertEqual(3 ** Var('x'), Exp(Const(3), Var('x')))
+
   def test_complex_magic_method_expression(self):
     expr = Var('x') + Const(2) * (Var('y') - 4)
     expected = Add(Var('x'), Mul(Const(2), Sub(Var('y'), Const(4))))

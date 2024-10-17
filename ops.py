@@ -70,6 +70,21 @@ class Op:
     other = Op.cast(other)
     return Exp(self, other)
   
+  __radd__ = __add__
+  __rmul__ = __mul__
+  
+  def __rsub__(self, other: Union[Op, int, float]) -> Op:
+    other = Op.cast(other)
+    return Sub(other, self)
+  
+  def __rtruediv__(self, other: Union[Op, int, float]) -> Op:
+    other = Op.cast(other)
+    return Div(other, self)
+
+  def __rpow__(self, other: Union[Op, int, float]) -> Op:
+    other = Op.cast(other)
+    return Exp(other, self)
+  
   def differentiate(self, var: Var) -> Op: raise NotImplementedError()
 
   def eval(self) -> float: raise NotImplementedError()
