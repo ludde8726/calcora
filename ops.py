@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 from enum import auto, Enum
+import math
 from typing import Tuple
+
 
 class BaseOps(Enum):
   @staticmethod
@@ -36,6 +40,8 @@ class Op:
 
   def __eq__(self, other):
     return isinstance(other, Op) and self.fxn == other.fxn and self.args == other.args
+  
+  def differentiate(self, var: Var) -> Op: raise NotImplementedError()
 
   def eval(self) -> float: raise NotImplementedError()
   
@@ -43,6 +49,9 @@ class Var(Op):
   def __init__(self, name: str) -> None:
     self.name = name
     super().__init__(name)
+  
+  def differentiate(self, var: Var) -> Op: 
+    return Const(1) if self == var else Const(0)
 
   def __repr__(self) -> str:
     return self.name
@@ -56,6 +65,8 @@ class Const(Op):
   def eval(self) -> float:
     return self.x
   
+  def differentiate(self, var: Var) -> Op: return Const(0)
+  
   def __repr__(self) -> str:
     return f'{self.x}'
   
@@ -68,6 +79,9 @@ class Add(Op):
   def eval(self):
     return self.x.eval() + self.y.eval()
   
+  def differentiate(self, var: Var) -> Op:
+    return Add(self.x.differentiate(var), self.y.differentiate(var))
+  
   def __repr__(self) -> str:
     return f'({self.x} + {self.y})'
 
@@ -78,6 +92,9 @@ class Neg(Op):
 
   def eval(self) -> float:
     return -self.x.eval()
+  
+  def differentiate(self, var: Var) -> Op:
+    return Neg(self.x.differentiate(var))
   
   def __repr__(self) -> str:
     return f'-({self.x})'
@@ -91,8 +108,37 @@ class Mul(Op):
   def eval(self) -> float:
     return self.x.eval() * self.y.eval()
   
+  def differentiate(self, var: Var) -> Op:
+    return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
+  
   def __repr__(self) -> str:
     return f'({self.x} * {self.y})'
+
+class Log(Op):
+  def __init__(self, x: Op, base: Op) -> None:
+    self.x = x
+    self.base = base
+    super().__init__(x, base)
+  
+  def eval(self) -> float:
+    return math.log(self.x.eval(), self.base.eval())
+  
+  def differentiate(self, var: Var) -> Op:
+    return Div(
+              Sub(
+                Div(
+                  Mul(self.x.differentiate(var), Log(self.base, Const(math.e))), 
+                  self.x
+                ), 
+                Div(
+                  Mul(self.base.differentiate(var), Log(self.x, Const(math.e))), 
+                  self.base)
+                ), 
+              Exp(Log(self.base, Const(math.e)), Const(2))
+            )
+  
+  def __repr__(self) -> str:
+    return f'log_{self.base}({self.x})'
   
 class Exp(Op):
   def __init__(self, x: Op, y: Op) -> None:
@@ -102,6 +148,10 @@ class Exp(Op):
 
   def eval(self) -> float:
     return self.x.eval() ** self.y.eval()
+  
+  def differentiate(self, var: Var) -> Op:
+    return Add(Mul(Mul(self.y, Exp(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
+               Mul(Mul(Exp(self.x, self.y), Log(self.x, Const(math.e))), self.y.differentiate(var)))
   
   def __repr__(self) -> str:
     return f'({self.x})^({self.y})'
