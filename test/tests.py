@@ -1,4 +1,4 @@
-from ops import Op, Const, Add, Div, Exp, Mul, Neg, Sub, Var
+from ops import Op, Const, Add, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
 from match import ConstLike, AnyOp, MatchedSymbol, Pattern, PatternMatcher, SymbolicPatternMatcher
 
 import random
@@ -56,6 +56,12 @@ class TestPatternMatcher(unittest.TestCase):
 
   def test_exponentiation_of_zero(self):
     self.assertEqual(self.pm.match(Exp(Const(0), Const(3))), Const(0))
+
+  def test_exponentiation_of_one(self):
+    self.assertEqual(self.pm.match(Exp(Const(1), Const(3))), Const(1))
+
+  def test_logarithm_with_same_base_and_value(self):
+    self.assertEqual(self.pm.match(Log(Const(2), Const(2))), Const(1))
 
   def test_inverse_multiplication(self):
     self.assertEqual(self.pm.match(Mul(Const(2), Exp(Const(2), Neg(Const(1))))), Const(1))
@@ -178,7 +184,7 @@ class TestOpClasses(unittest.TestCase):
     with self.assertRaises(AssertionError):
       Const(-5)
   
-  def test_equals_operatoe(self):
+  def test_equals_operator(self):
     add_op_1 = Add(Const(5), Const(10))
     add_op_2 = Add(Const(5), Const(10))
     self.assertEqual(add_op_1, add_op_2)
