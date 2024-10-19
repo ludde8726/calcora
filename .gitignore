@@ -4,8 +4,9 @@ __pycache__/
 
 .env
 .venv
+.vscode
 
 calcora/untracked/
 calcora.egg-info/
 
-testing.py
+calcora/testing.py

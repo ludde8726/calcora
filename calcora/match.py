@@ -61,13 +61,14 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Mul(AnyOp(), Const(1)), lambda x: x), # 1 * x = x
   Pattern(Mul(Const(1), AnyOp()), lambda x: x), # x * 1 = x
 
-  Pattern(Mul(AnyOp(), Const(0)), lambda x: Const(0)), # x * 1 = x
-  Pattern(Mul(Const(0), AnyOp()), lambda x: Const(0)), # x * 1 = x
+  Pattern(Mul(AnyOp(), Const(0)), lambda x: Const(0)), # x * 0 = 0
+  Pattern(Mul(Const(0), AnyOp()), lambda x: Const(0)), # 0 * x = 0
 
   Pattern(Exp(Const(0), AnyOp()), lambda x: Const(0)), # 0 ^ x = 0
   Pattern(Exp(AnyOp(), Const(0)), lambda x: Const(1)), # x ^ 0 = 1
 
-  Pattern(Exp(Const(1), AnyOp()), lambda x: Const(1)),
+  Pattern(Exp(Const(1), AnyOp()), lambda x: Const(1)), # 1 ^ x = 1
+  Pattern(Exp(AnyOp(), Const(1)), lambda x: x), # x ^ 1 = x
 
   Pattern(Log(ConstLike('x'), ConstLike('x')), lambda x: Const(1)), # Log_x(x) = 1
 

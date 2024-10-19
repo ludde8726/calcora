@@ -45,6 +45,8 @@ class Op:
     other = Op.cast(other)
     return Add(self, other)
   
+  def __neg__(self) -> Op: return Neg(self)
+  
   def __sub__(self, other: Union[Op, int, float]) -> Op:
     other = Op.cast(other)
     return Sub(self, other)
