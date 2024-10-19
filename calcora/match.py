@@ -1,5 +1,5 @@
-from ops import BaseOps
-from ops import Op, Add, Const, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
+from calcora.ops import BaseOps
+from calcora.ops import Op, Add, Const, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
 
 from typing import Callable, Dict, Iterable, List, Optional, TypeGuard
 
@@ -194,39 +194,37 @@ if __name__ == '__main__':
                       )
                     )
   
-  test_expression = Add(Var('x'), Mul(Const(2), Var('x')))
-  test_expression = Add(Mul(Const(234), Var('x')), Mul(Const(2), Var('x')))
-  test_expression = Add(
-                      Add(
-                        Add(
-                          Add(Var('x'), Const(0)),  # (x + 0)
-                          Mul(Mul(Var('y'), Var('z')), Const(1))  # y * z * 1
-                        ),
-                        Add(
-                          Neg(Neg(Mul(Var('a'), Var('b')))),  # -(-(a * b))
-                          Mul(Var('c'), Exp(Var('c'), Neg(Const(1))))  # c * c^(-1)
-                        )
-                      ),
+  # test_expression = Add(Var('x'), Mul(Const(2), Var('x')))
+  # test_expression = Add(Mul(Const(234), Var('x')), Mul(Const(2), Var('x')))
+  # test_expression = Add(
+  #                     Add(
+  #                       Add(
+  #                         Add(Var('x'), Const(0)),  # (x + 0)
+  #                         Mul(Mul(Var('y'), Var('z')), Const(1))  # y * z * 1
+  #                       ),
+  #                       Add(
+  #                         Neg(Neg(Mul(Var('a'), Var('b')))),  # -(-(a * b))
+  #                         Mul(Var('c'), Exp(Var('c'), Neg(Const(1))))  # c * c^(-1)
+  #                       )
+  #                     ),
 
-                      Add(
-                        Add(
-                          Add(Var('x'), Mul(Const(2), Var('x'))),  # x + 2x
-                          Add(
-                            Mul(Var('x'), Const(3)),  # x * 3
-                            Mul(Var('x'), Const(2))   # x * 2
-                          )
-                        ),
-                        Add(
-                          Exp(Const(0), Var('x')),  # 0^x
-                          Exp(Var('x'), Const(0))   # x^0
-                        )
-                      )
-                    )
+  #                     Add(
+  #                       Add(
+  #                         Add(Var('x'), Mul(Const(2), Var('x'))),  # x + 2x
+  #                         Add(
+  #                           Mul(Var('x'), Const(3)),  # x * 3
+  #                           Mul(Var('x'), Const(2))   # x * 2
+  #                         )
+  #                       ),
+  #                       Add(
+  #                         Exp(Const(0), Var('x')),  # 0^x
+  #                         Exp(Var('x'), Const(0))   # x^0
+  #                       )
+  #                     )
+  #                   )
 
 
   print(f"Original expression: {test_expression}")
-  print(f"Original expression eval: {test_expression}")
   simplified_expr = pm.match(test_expression)
 
   print(f"Simplified expression: {simplified_expr}")
-  print(f"Simplified expression eval: {simplified_expr}") # 1+Var('i')+Var('j)
