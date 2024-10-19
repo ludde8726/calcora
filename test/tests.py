@@ -1,4 +1,4 @@
-from calcora.ops import Op, Const, Add, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
+from calcora.ops import Op, Const, Add, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
 from calcora.match import SymbolicPatternMatcher
 from calcora.utils import is_const_like, partial_eval
 
@@ -10,16 +10,16 @@ def generate_random_expression(depth: int, exponents: bool = False) -> Op:
     return Const(random.uniform(1, 10))
   else:
     operations = [Add, Sub, Mul, Div, Neg]
-    if exponents: operations.append(Exp)
+    if exponents: operations.append(Pow)
     operation = random.choice(operations)
     if operation in [Add, Sub, Mul, Div]:
       left_expr = generate_random_expression(depth - 1, exponents=exponents)
       right_expr = generate_random_expression(depth - 1, exponents=exponents)
       return operation(left_expr, right_expr)
-    elif operation == Exp:
+    elif operation == Pow:
       base = generate_random_expression(depth - 1, exponents=exponents)
       exponent = Const(random.randint(1, 10))
-      return Exp(base, exponent)
+      return Pow(base, exponent)
     else:
       expr = generate_random_expression(depth - 1, exponents=exponents)
       return Neg(expr)
@@ -53,19 +53,19 @@ class TestPatternMatcher(unittest.TestCase):
     self.assertEqual(self.pm.match(Mul(Const(0), Const(5))), Const(0))
 
   def test_exponentiation_to_zero(self):
-    self.assertEqual(self.pm.match(Exp(Const(2), Const(0))), Const(1))
+    self.assertEqual(self.pm.match(Pow(Const(2), Const(0))), Const(1))
 
   def test_exponentiation_of_zero(self):
-    self.assertEqual(self.pm.match(Exp(Const(0), Const(3))), Const(0))
+    self.assertEqual(self.pm.match(Pow(Const(0), Const(3))), Const(0))
 
   def test_exponentiation_of_one(self):
-    self.assertEqual(self.pm.match(Exp(Const(1), Const(3))), Const(1))
+    self.assertEqual(self.pm.match(Pow(Const(1), Const(3))), Const(1))
 
   def test_logarithm_with_same_base_and_value(self):
     self.assertEqual(self.pm.match(Log(Const(2), Const(2))), Const(1))
 
   def test_inverse_multiplication(self):
-    self.assertEqual(self.pm.match(Mul(Const(2), Exp(Const(2), Neg(Const(1))))), Const(1))
+    self.assertEqual(self.pm.match(Mul(Const(2), Pow(Const(2), Neg(Const(1))))), Const(1))
 
   def test_constant_zero_in_different_context(self):
     self.assertEqual(self.pm.match(Add(Const(0), Add(Const(3), Const(4)))), Add(Const(3), Const(4)))
@@ -95,13 +95,13 @@ class TestPatternMatcher(unittest.TestCase):
     self.assertEqual(self.pm.match(Mul(Const(0), Var('d'))), Const(0))
 
   def test_exponentiation_with_variables(self):
-    self.assertEqual(self.pm.match(Exp(Var('x'), Const(0))), Const(1))
+    self.assertEqual(self.pm.match(Pow(Var('x'), Const(0))), Const(1))
 
   def test_exponentiation_of_zero_with_variable(self):
-    self.assertEqual(self.pm.match(Exp(Const(0), Var('y'))), Const(0))
+    self.assertEqual(self.pm.match(Pow(Const(0), Var('y'))), Const(0))
 
   def test_inverse_multiplication_with_variables(self):
-    self.assertEqual(self.pm.match(Mul(Var('x'), Exp(Var('x'), Neg(Const(1))))), Const(1))
+    self.assertEqual(self.pm.match(Mul(Var('x'), Pow(Var('x'), Neg(Const(1))))), Const(1))
 
   def test_complex_expression_simplification(self):
     self.assertEqual(self.pm.match(Add(Mul(Var('a'), Const(1)), Const(0))), Var('a'))
@@ -148,19 +148,19 @@ class TestPatternMatcher(unittest.TestCase):
     self.assertEqual(self.pm.match(Add(Mul(Var('x'), Const(2)), Mul(Var('x'), Const(3)))), Mul(Const(5), Var('x')))
 
   def test_exponential_add_with_no_exponent(self):
-    self.assertEqual(self.pm.match(Mul(Var('x'), Exp(Var('x'), Const(3)))), Exp(Var('x'), Const(4)))
-    self.assertEqual(self.pm.match(Mul(Exp(Var('x'), Const(3)), Var('x'))), Exp(Var('x'), Const(4)))
+    self.assertEqual(self.pm.match(Mul(Var('x'), Pow(Var('x'), Const(3)))), Pow(Var('x'), Const(4)))
+    self.assertEqual(self.pm.match(Mul(Pow(Var('x'), Const(3)), Var('x'))), Pow(Var('x'), Const(4)))
 
   def test_exponential_add(self):
-    self.assertEqual(self.pm.match(Mul(Exp(Var('x'), Const(2)), Exp(Var('x'), Const(3)))), Exp(Var('x'), Add(Const(2), Const(3))))
+    self.assertEqual(self.pm.match(Mul(Pow(Var('x'), Const(2)), Pow(Var('x'), Const(3)))), Pow(Var('x'), Add(Const(2), Const(3))))
 
   def test_exponential_multiply(self):
-    self.assertEqual(self.pm.match(Exp(Exp(Var('x'), Const(2)), Const(3))), Exp(Var('x'), Mul(Const(2), Const(3))))
+    self.assertEqual(self.pm.match(Pow(Pow(Var('x'), Const(2)), Const(3))), Pow(Var('x'), Mul(Const(2), Const(3))))
 
   def test_is_const_like(self):
     self.assertTrue(is_const_like(Sub(Mul(Div(Const(2), Const(4)), Const(8)), Neg(Const(3)))))
     self.assertFalse(is_const_like(Sub(Mul(Div(Const(2), Const(4)), Const(8)), Neg(Var('x')))))
-    self.assertFalse(is_const_like(Mul(Div(Const(2), Const(4)), Ln(Neg(Exp(Var('x'), Const(3)))))))
+    self.assertFalse(is_const_like(Mul(Div(Const(2), Const(4)), Ln(Neg(Pow(Var('x'), Const(3)))))))
 
   def test_partial_eval(self):
     self.assertEqual(partial_eval(Sub(Mul(Div(Const(2), Const(4)), Const(8)), Neg(Const(3)))), Const(7))
@@ -170,7 +170,7 @@ class TestPatternMatcher(unittest.TestCase):
     # (x + 0 + 1) * (0 + y)(1 * z) + x * x^(-1) + -(-0) + -(-x)
     # = ((x * (y * z)) + (1 + x)) = x * y * z + 1 + x
     test_expression = Add(Mul(Mul(Add(Var('x'), Const(0)), Const(1)), Mul(Add(Const(0), Var('y')), Mul(Const(1), Var('z')))), 
-                          Add(Mul(Var('x'), Exp(Var('x'), Neg(Const(1)))), Add(Neg(Neg(Const(0))), Neg(Neg(Var('x'))))))
+                          Add(Mul(Var('x'), Pow(Var('x'), Neg(Const(1)))), Add(Neg(Neg(Const(0))), Neg(Neg(Var('x'))))))
     expected =  Add(Mul(Var('x'), Mul(Var('y'), Var('z'))), Add(Const(1), Var('x')))
     self.assertEqual(self.pm.match(test_expression), expected)
 
@@ -179,8 +179,8 @@ class TestPatternMatcher(unittest.TestCase):
     # = 1
     test_expression = Add(Mul(Add(Mul(Add(Var('x'), Const(0)), Mul(Var('y'), Const(1))), 
                                   Mul(Add(Const(0), Var('z')), Mul(Const(1), Add(Var('a'), Var('b'))))), 
-                                  Mul(Add(Var('c'), Exp(Var('d'), Const(0))), Mul(Add(Mul(Var('e'), Const(1)), Neg(Neg(Var('f')))), Mul(Var('g'), Const(0))))),
-                                  Add(Mul(Var('h'), Exp(Var('h'), Neg(Const(1)))), Mul(Neg(Neg(Const(0))), Add(Var('i'), Var('j')))))
+                                  Mul(Add(Var('c'), Pow(Var('d'), Const(0))), Mul(Add(Mul(Var('e'), Const(1)), Neg(Neg(Var('f')))), Mul(Var('g'), Const(0))))),
+                                  Add(Mul(Var('h'), Pow(Var('h'), Neg(Const(1)))), Mul(Neg(Neg(Const(0))), Add(Var('i'), Var('j')))))
     expected =  Const(1)
     self.assertEqual(self.pm.match(test_expression), expected)
 
@@ -202,7 +202,7 @@ class TestOpClasses(unittest.TestCase):
     self.assertNotEqual(add_op_1, add_op_3)
 
   def test_div_operation(self):
-    self.assertEqual(Div(Const(10), Const(2)), Mul(Const(10), Exp(Const(2), Neg(Const(1)))))
+    self.assertEqual(Div(Const(10), Const(2)), Mul(Const(10), Pow(Const(2), Neg(Const(1)))))
     self.assertEqual(Div(Const(10), Const(2)).eval(), 5)
 
   def test_sub_operation(self):
@@ -222,7 +222,7 @@ class TestOpClasses(unittest.TestCase):
     self.assertEqual(Var('x') / 3, Div(Var('x'), Const(3)))
 
   def test_magic_method_pow(self):
-    self.assertEqual(Var('x') ** 3, Exp(Var('x'), Const(3)))
+    self.assertEqual(Var('x') ** 3, Pow(Var('x'), Const(3)))
 
   def test_magic_method_rsub(self):
     self.assertEqual(3 - Var('x'), Sub(Const(3), Var('x')))
@@ -231,7 +231,7 @@ class TestOpClasses(unittest.TestCase):
     self.assertEqual(3 / Var('x'), Div(Const(3), Var('x')))
 
   def test_magic_method_rpow(self):
-    self.assertEqual(3 ** Var('x'), Exp(Const(3), Var('x')))
+    self.assertEqual(3 ** Var('x'), Pow(Const(3), Var('x')))
 
   def test_complex_magic_method_expression(self):
     expr = Var('x') + Const(2) * (Var('y') - 4)
@@ -250,7 +250,7 @@ class TestOpClasses(unittest.TestCase):
 
   def test_magic_method_multiple_operations(self):
     expr = (Var('x') ** 2 + Var('y')) * (Var('z') - 3)
-    expected = Mul(Add(Exp(Var('x'), Const(2)), Var('y')), Sub(Var('z'), Const(3)))
+    expected = Mul(Add(Pow(Var('x'), Const(2)), Var('y')), Sub(Var('z'), Const(3)))
     self.assertEqual(expr, expected)
 
   def test_random_expressions_without_exponents(self):

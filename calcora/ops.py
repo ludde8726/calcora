@@ -16,12 +16,8 @@ class BaseOps(Enum):
 
   Add = auto()
   Mul = auto()
-  Exp = auto()
+  Pow = auto()
   Log = auto()
-
-  # Fake ops
-  Sub = auto()
-  Div = auto()
 
   # NoOps
   AnyOp = auto()
@@ -61,7 +57,7 @@ class Op:
   
   def __pow__(self, other: Union[Op, int, float]) -> Op:
     other = Op.cast(other)
-    return Exp(self, other)
+    return Pow(self, other)
   
   __radd__ = __add__
   __rmul__ = __mul__
@@ -76,7 +72,7 @@ class Op:
 
   def __rpow__(self, other: Union[Op, int, float]) -> Op:
     other = Op.cast(other)
-    return Exp(other, self)
+    return Pow(other, self)
   
   def differentiate(self, var: Var) -> Op: raise NotImplementedError()
 
@@ -176,13 +172,13 @@ class Log(Op):
                   Mul(self.base.differentiate(var), Ln(self.x)), 
                   self.base)
                 ), 
-              Exp(Ln(self.base), Const(2))
+              Pow(Ln(self.base), Const(2))
             )
   
   def __repr__(self) -> str:
     return f'log_{self.base}({self.x})' if not self.natural else f'ln({self.x})'
   
-class Exp(Op):
+class Pow(Op):
   def __init__(self, x: Op, y: Op) -> None:
     self.x = x
     self.y = y
@@ -192,8 +188,8 @@ class Exp(Op):
     return self.x.eval(**kwargs) ** self.y.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Op:
-    return Add(Mul(Mul(self.y, Exp(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
-               Mul(Mul(Exp(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
+    return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
+               Mul(Mul(Pow(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
   
   def __repr__(self) -> str:
     return f'({self.x})^({self.y})'
@@ -201,7 +197,7 @@ class Exp(Op):
 class Div(Op):
   def __new__(cls, x: Op, y: Op) -> Op:
     if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
-    return Mul(x, Exp(y, Neg(Const(1))))
+    return Mul(x, Pow(y, Neg(Const(1))))
   
 class Sub(Op):
   def __new__(cls, x: Op, y: Op) -> Op:

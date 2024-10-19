@@ -12,16 +12,16 @@ Right now Calcora only supports a few basic features:
 - Add
 - Neg
 - Mul
-- Exp
+- Pow
 - Log
 ---
 - Sub
 - Div
 - Ln
 
-These are the operations that calcora currently supports, however Sub, Div and Ln are only wrappers around other ops for utility reasons. Sub is just an Add combined with a Neg such that `Sub(x, y) = Add(x, Neg(y))` and Div is a Mul and an Exp combined such that `Div(x, y) = Mul(x, Exp(y, Neg(Const(1))))`. Ln is simply a wrapper over Log such that `Ln(x) = Log(x, Const(e))` where e is Eulers number.
+These are the operations that calcora currently supports, however Sub, Div and Ln are only wrappers around other ops for utility reasons. Sub is just an Add combined with a Neg such that `Sub(x, y) = Add(x, Neg(y))` and Div is a Mul and an Pow combined such that `Div(x, y) = Mul(x, Pow(y, Neg(Const(1))))`. Ln is simply a wrapper over Log such that `Ln(x) = Log(x, Const(e))` where e is Eulers number.
 
-Note that i wrote `Neg(Const(1))` inside of the `Exp` insted of simply -1, this is because all ops except for `Const` only accept other Ops as parameters. The reason for this will be explained later.
+Note that i wrote `Neg(Const(1))` inside of the `Pow` insted of simply -1, this is because all ops except for `Const` only accept other Ops as parameters. The reason for this will be explained later.
 
 The `Op` parent class also implements the python operations that Calcora supports. This means that writing `Add(Const(1), Const(2))` is the same as `Const(1) + Const(2)`. Note however that at least one of the arguments must be a Calcora op.
 
@@ -83,10 +83,10 @@ def differentiate(self, var: Var) -> Op:
 
 This pattern continues and hopefully you get the point now. The reason for the complex multiplication derivative is to cover the possibilty that both arguments of the operation can have variables in them.
 
-Trying something like `Exp(x, Const(2))` will result in an even more complicated expression that also simplifies to the correct result `Mul(Const(2), x)`
+Trying something like `Pow(x, Const(2))` will result in an even more complicated expression that also simplifies to the correct result `Mul(Const(2), x)`
 
 ```
->>> from calcora.ops import Const, Exp, Var
+>>> from calcora.ops import Const, Pow, Var
 >>> x = Var('x')
 >>> expression = x ** 2
 >>> expression.differentiate(x)
@@ -115,7 +115,7 @@ If you want to see how the other rules are implemented you can look inside of ma
 ```
 
 ```
->>> from calcora.ops import Const, Exp, Var
+>>> from calcora.ops import Const, Pow, Var
 >>> from calcora.match import SymbolicPatternMatcher
 >>> x = Var('x')
 >>> expression = x ** 2
@@ -149,7 +149,7 @@ False
 The `partial_eval` function tries to evaluate as much as possible of an expression that contains variables, it recursively checks the arguments of operations and evaluates those who don't contain any variables. Using it on the last example from the `PatternMatcher` we can see how it might be useful.
 
 ```
->>> from calcora.ops import Const, Exp, Var
+>>> from calcora.ops import Const, Pow, Var
 >>> from calcora.match import SymbolicPatternMatcher
 >>> from calcora.utils import partial_eval
 >>> x = Var('x')

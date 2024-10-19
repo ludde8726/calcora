@@ -1,5 +1,5 @@
 from calcora.ops import BaseOps
-from calcora.ops import Op, Add, AnyOp, Const, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
+from calcora.ops import Op, Add, AnyOp, Const, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
 from calcora.utils import is_any_op, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
 
 from typing import Callable, Dict, Iterable, List, Optional, TypeGuard
@@ -64,20 +64,20 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Mul(AnyOp(), Const(0)), lambda x: Const(0)), # x * 0 = 0
   Pattern(Mul(Const(0), AnyOp()), lambda x: Const(0)), # 0 * x = 0
 
-  Pattern(Exp(Const(0), AnyOp()), lambda x: Const(0)), # 0 ^ x = 0
-  Pattern(Exp(AnyOp(), Const(0)), lambda x: Const(1)), # x ^ 0 = 1
+  Pattern(Pow(Const(0), AnyOp()), lambda x: Const(0)), # 0 ^ x = 0
+  Pattern(Pow(AnyOp(), Const(0)), lambda x: Const(1)), # x ^ 0 = 1
 
-  Pattern(Exp(Const(1), AnyOp()), lambda x: Const(1)), # 1 ^ x = 1
-  Pattern(Exp(AnyOp(), Const(1)), lambda x: x), # x ^ 1 = x
+  Pattern(Pow(Const(1), AnyOp()), lambda x: Const(1)), # 1 ^ x = 1
+  Pattern(Pow(AnyOp(), Const(1)), lambda x: x), # x ^ 1 = x
 
   Pattern(Log(ConstLike('x'), ConstLike('x')), lambda x: Const(1)), # Log_x(x) = 1
 
   Pattern(Add(MatchedSymbol('x'), Neg(MatchedSymbol('x'))), lambda x: Const(0)), # x - x = 0
 
-  Pattern(Mul(MatchedSymbol('x'), Exp(MatchedSymbol(name='x'), 
+  Pattern(Mul(MatchedSymbol('x'), Pow(MatchedSymbol(name='x'), 
                                                 Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
   
-  Pattern(Mul(MatchedSymbol('x'), MatchedSymbol('x')), lambda x: Exp(x, Const(2))), # x * x = x^2
+  Pattern(Mul(MatchedSymbol('x'), MatchedSymbol('x')), lambda x: Pow(x, Const(2))), # x * x = x^2
 
   
   Pattern(Add(MatchedSymbol('x'), Mul(ConstLike('y'), MatchedSymbol('x'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + yx = (y+1)x where y is a constant
@@ -90,8 +90,8 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Add(Mul(ConstLike('y'), MatchedSymbol('x')), Mul(MatchedSymbol('x'), ConstLike('z'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # yx + xz = (y+z)x where y and z are constants
   Pattern(Add(Mul(MatchedSymbol('x'), ConstLike('y')), Mul(MatchedSymbol('x'), ConstLike('z'))), lambda x,y,z: Mul(Const(Add(y, z).eval()), x)), # xy + xz = (y+z)x where y and z are constants
 
-  Pattern(Mul(MatchedSymbol('x'), Exp(MatchedSymbol('x'), ConstLike('y'))), lambda x,y: Exp(x, Const(Add(y, Const(1)).eval()))),    # x * x^y = x^(y+1) where y is a constant
-  Pattern(Mul(Exp(MatchedSymbol('x'), ConstLike('y')), MatchedSymbol('x')), lambda x,y: Exp(x, Const(Add(y, Const(1)).eval()))),    # x^y * x = x^(y+1) where y is a constant
-  Pattern(Mul(Exp(MatchedSymbol('x'), NamedAny('y')), Exp(MatchedSymbol('x'), NamedAny('z'))), lambda x,y,z: Exp(x, Add(y, z))),    # x^y * x^z = x^(y+z)
-  Pattern(Exp(Exp(NamedAny('x'), NamedAny('y')), NamedAny('z')), lambda x,y,z: Exp(x, Mul(y, z))),                                  # (x^y)^z = x^(y*z)
+  Pattern(Mul(MatchedSymbol('x'), Pow(MatchedSymbol('x'), ConstLike('y'))), lambda x,y: Pow(x, Const(Add(y, Const(1)).eval()))),    # x * x^y = x^(y+1) where y is a constant
+  Pattern(Mul(Pow(MatchedSymbol('x'), ConstLike('y')), MatchedSymbol('x')), lambda x,y: Pow(x, Const(Add(y, Const(1)).eval()))),    # x^y * x = x^(y+1) where y is a constant
+  Pattern(Mul(Pow(MatchedSymbol('x'), NamedAny('y')), Pow(MatchedSymbol('x'), NamedAny('z'))), lambda x,y,z: Pow(x, Add(y, z))),    # x^y * x^z = x^(y+z)
+  Pattern(Pow(Pow(NamedAny('x'), NamedAny('y')), NamedAny('z')), lambda x,y,z: Pow(x, Mul(y, z))),                                  # (x^y)^z = x^(y*z)
 ])
