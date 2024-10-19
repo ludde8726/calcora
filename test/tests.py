@@ -1,5 +1,5 @@
 from ops import Op, Const, Add, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
-from match import is_const_like, SymbolicPatternMatcher
+from match import is_const_like, partial_eval, SymbolicPatternMatcher
 
 import random
 import unittest
@@ -160,6 +160,10 @@ class TestPatternMatcher(unittest.TestCase):
     self.assertTrue(is_const_like(Sub(Mul(Div(Const(2), Const(4)), Const(8)), Neg(Const(3)))))
     self.assertFalse(is_const_like(Sub(Mul(Div(Const(2), Const(4)), Const(8)), Neg(Var('x')))))
     self.assertFalse(is_const_like(Mul(Div(Const(2), Const(4)), Ln(Neg(Exp(Var('x'), Const(3)))))))
+
+  def test_partial_eval(self):
+    self.assertEqual(partial_eval(Sub(Mul(Div(Const(2), Const(4)), Const(8)), Neg(Const(3)))), Const(7))
+    self.assertEqual(partial_eval(Sub(Mul(Div(Const(2), Const(4)), Const(8)), Neg(Var('x')))), Add(Const(4), Neg(Neg(Var('x')))))
 
   def test_complex_nested_expression(self):
     # (x + 0 + 1) * (0 + y)(1 * z) + x * x^(-1) + -(-0) + -(-x)

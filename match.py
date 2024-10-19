@@ -1,5 +1,5 @@
 from ops import BaseOps
-from ops import Op, Add, Const, Exp, Ln, Log, Mul, Neg, Var
+from ops import Op, Add, Const, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
 
 from typing import Callable, Dict, Iterable, List, Optional, TypeGuard
 
@@ -99,6 +99,13 @@ def simplify(op: Op) -> Op:
   if op.fxn in [BaseOps.Add, BaseOps.Mul] and len(simplified_args) < 2:
     return Const(*[arg.eval() for arg in simplified_args])
   return op.__class__(*simplified_args)
+
+def partial_eval(op: Op) -> Op:
+  if op.fxn != BaseOps.Const and op.fxn != BaseOps.Var:
+    new_args = [partial_eval(arg) for arg in op.args]
+    op = reconstruct_op(op, *new_args)
+  if is_const_like(op): return Const(op.eval()) if op.eval() >= 0 else Neg(Const(abs(op.eval())))
+  return op
 
 SymbolicPatternMatcher = PatternMatcher([
   Pattern(Add(AnyOp(), Const(0)), lambda x: x), # x + 0 = x
