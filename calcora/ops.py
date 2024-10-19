@@ -4,7 +4,6 @@ from enum import auto, Enum
 import math
 from typing import Tuple, Union
 
-
 class BaseOps(Enum):
   @staticmethod
   def _generate_next_value_(name, start, count, last_values):
@@ -79,7 +78,7 @@ class Op:
   
   def differentiate(self, var: Var) -> Op: raise NotImplementedError()
 
-  def eval(self) -> float: raise NotImplementedError()
+  def eval(self, **kwargs: Op) -> float: raise NotImplementedError()
   
 class Var(Op):
   def __init__(self, name: str) -> None:
@@ -88,6 +87,10 @@ class Var(Op):
   
   def differentiate(self, var: Var) -> Op: 
     return Const(1) if self == var else Const(0)
+  
+  def eval(self, **kwargs: Op) -> float:
+    if self.name in kwargs: return kwargs[self.name].eval()
+    raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
 
   def __repr__(self) -> str:
     return self.name
@@ -98,7 +101,7 @@ class Const(Op):
     self.x = x
     super().__init__(x)
   
-  def eval(self) -> float:
+  def eval(self, **kwargs: Op) -> float:
     return self.x
   
   def differentiate(self, var: Var) -> Op: return Const(0)
@@ -112,8 +115,8 @@ class Add(Op):
     self.y = y
     super().__init__(x, y)
 
-  def eval(self):
-    return self.x.eval() + self.y.eval()
+  def eval(self, **kwargs: Op):
+    return self.x.eval(**kwargs) + self.y.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Op:
     return Add(self.x.differentiate(var), self.y.differentiate(var))
@@ -126,8 +129,8 @@ class Neg(Op):
     self.x = x
     super().__init__(x)
 
-  def eval(self) -> float:
-    return -self.x.eval()
+  def eval(self, **kwargs: Op) -> float:
+    return -self.x.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Op:
     return Neg(self.x.differentiate(var))
@@ -141,8 +144,8 @@ class Mul(Op):
     self.y = y
     super().__init__(x, y)
 
-  def eval(self) -> float:
-    return self.x.eval() * self.y.eval()
+  def eval(self, **kwargs: Op) -> float:
+    return self.x.eval(**kwargs) * self.y.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Op:
     return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
@@ -157,8 +160,8 @@ class Log(Op):
     self.natural = natrual
     super().__init__(x, base)
   
-  def eval(self) -> float:
-    return math.log(self.x.eval(), self.base.eval())
+  def eval(self, **kwargs: Op) -> float:
+    return math.log(self.x.eval(**kwargs), self.base.eval(**kwargs))
   
   def differentiate(self, var: Var) -> Op:
     return Div(
@@ -183,8 +186,8 @@ class Exp(Op):
     self.y = y
     super().__init__(x, y)
 
-  def eval(self) -> float:
-    return self.x.eval() ** self.y.eval()
+  def eval(self, **kwargs) -> float:
+    return self.x.eval(**kwargs) ** self.y.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Op:
     return Add(Mul(Mul(self.y, Exp(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
@@ -212,3 +215,8 @@ class AnyOp(Op):
     self.name = name
     self.assert_const_like = assert_const_like
     super().__init__()
+
+if __name__ == "__main__":
+  x = Var('x')
+  expr = x / 2 + 4
+  print(expr.eval(x=x))

@@ -3,15 +3,13 @@ from calcora.ops import AnyOp, BaseOps, Const, Log, Ln, Neg
 
 from typing import TypeGuard
 
-def is_any_op(op: Op) -> TypeGuard[AnyOp]:
-  return op.fxn == BaseOps.AnyOp
+def is_any_op(op: Op) -> TypeGuard[AnyOp]: return op.fxn == BaseOps.AnyOp
 
-def is_log_op(op: Op) -> TypeGuard[Log]:
-  return op.fxn == BaseOps.Log
+def is_log_op(op: Op) -> TypeGuard[Log]: return op.fxn == BaseOps.Log
 
 def is_const_like(op: Op):
   if op.fxn == BaseOps.Const: return True
-  if op.fxn == BaseOps.Var: return False
+  elif op.fxn == BaseOps.Var: return False
   return all(is_const_like(arg) for arg in op.args)
 
 def reconstruct_op(op: Op, *args):
