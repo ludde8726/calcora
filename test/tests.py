@@ -1,5 +1,6 @@
 from calcora.ops import Op, Const, Add, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
-from calcora.match import is_const_like, partial_eval, SymbolicPatternMatcher
+from calcora.match import SymbolicPatternMatcher
+from calcora.utils import is_const_like, partial_eval
 
 import random
 import unittest

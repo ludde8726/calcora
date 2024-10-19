@@ -1,33 +1,8 @@
 from calcora.ops import BaseOps
-from calcora.ops import Op, Add, Const, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
+from calcora.ops import Op, Add, AnyOp, Const, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
+from calcora.utils import is_any_op, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
 
 from typing import Callable, Dict, Iterable, List, Optional, TypeGuard
-
-class AnyOp(Op):
-  def __init__(self, match: bool = False, name: str="x", assert_const_like=False) -> None:
-    self.match = match
-    self.name = name
-    self.assert_const_like = assert_const_like
-    super().__init__()
-
-def is_any_op(op: Op) -> TypeGuard[AnyOp]:
-  return op.fxn == BaseOps.AnyOp
-
-def is_log_op(op: Op) -> TypeGuard[Log]:
-  return op.fxn == BaseOps.Log
-
-def is_const_like(op: Op):
-  if op.fxn == BaseOps.Const: return True
-  if op.fxn == BaseOps.Var: return False
-  return all(is_const_like(arg) for arg in op.args)
-
-def reconstruct_op(op: Op, *args):
-  if is_log_op(op) and op.natural: return Ln(args[0])
-  return op.__class__(*args)
-
-ConstLike = lambda name: AnyOp(name=name, assert_const_like=True)
-NamedAny = lambda name: AnyOp(name=name)
-MatchedSymbol = lambda name: AnyOp(name=name, match=True)
 
 class Pattern:
   def __init__(self, pattern: Op, replacement: Callable[..., Op]) -> None:
@@ -76,37 +51,6 @@ class PatternMatcher:
     if simplified_expr != expression: simplified_expr = self.match(simplified_expr)
     return simplified_expr
   
-def multi_flatten(args: Iterable[Op], op_type: BaseOps):
-  new_args = []
-  for arg in args: 
-    if arg.fxn == op_type: new_args.extend(multi_flatten(arg.args, op_type))
-    else: new_args.append(arg)
-  return new_args
-
-def simplify(op: Op) -> Op:
-  simplified_args = [simplify(arg) for arg in op.args]
-
-  if op.fxn == BaseOps.Const: return op
-  elif op.fxn == BaseOps.Add:
-    simplified_args = multi_flatten(simplified_args, BaseOps.Add)
-    const_sum = sum([arg.eval() for arg in simplified_args if arg.fxn == BaseOps.Const])
-    non_const_args = [arg for arg in simplified_args if arg.fxn != BaseOps.Const]
-    simplified_args = [Const(const_sum), *non_const_args]
-  elif op.fxn == BaseOps.Neg:
-    inner = simplified_args[0]
-    if inner.fxn == BaseOps.Neg: return simplify(inner.args[0])
-
-  if op.fxn in [BaseOps.Add, BaseOps.Mul] and len(simplified_args) < 2:
-    return Const(*[arg.eval() for arg in simplified_args])
-  return op.__class__(*simplified_args)
-
-def partial_eval(op: Op) -> Op:
-  if op.fxn != BaseOps.Const and op.fxn != BaseOps.Var:
-    new_args = [partial_eval(arg) for arg in op.args]
-    op = reconstruct_op(op, *new_args)
-  if is_const_like(op): return Const(op.eval()) if op.eval() >= 0 else Neg(Const(abs(op.eval())))
-  return op
-
 SymbolicPatternMatcher = PatternMatcher([
   Pattern(Add(AnyOp(), Const(0)), lambda x: x), # x + 0 = x
   Pattern(Add(Const(0), AnyOp()), lambda x: x), # 0 + x = x

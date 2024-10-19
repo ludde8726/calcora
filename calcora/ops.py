@@ -27,14 +27,6 @@ class BaseOps(Enum):
   # NoOps
   AnyOp = auto()
 
-
-class DType(Enum):
-  int = auto()
-  float = auto()
-
-def ln_repr(self):
-  return f'ln({self.x})'
-
 class Op:
   def __init__(self, *args) -> None:
     self.args: Tuple[Op, ...] = args
@@ -213,6 +205,13 @@ class Sub(Op):
 class Ln(Op):
   def __new__(cls, x: Op) -> Op:
     return Log(x, Const(math.e), natrual=True)
+  
+class AnyOp(Op):
+  def __init__(self, match: bool = False, name: str="x", assert_const_like=False) -> None:
+    self.match = match
+    self.name = name
+    self.assert_const_like = assert_const_like
+    super().__init__()
   
 if __name__ == '__main__':
   x = Var('x')
