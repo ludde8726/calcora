@@ -23,6 +23,8 @@ These are the operations that calcora currently supports, however Sub, Div and L
 
 Note that i wrote `Neg(Const(1))` inside of the `Exp` insted of simply -1, this is because all ops except for `Const` only accept other Ops as parameters. The reason for this will be explained later.
 
+The `Op` parent class also implements the python operations that Calcora supports. This means that writing `Add(Const(1), Const(2))` is the same as `Const(1) + Const(2)`. Note however that at least one of the arguments must be a Calcora op.
+
 ### Variables
 As shown in the list of ops that calcora supports variables are an option. These are a special kind of operation that takes in a string as an argument. The variable name is simply a way to identify different variables.
 
@@ -33,6 +35,8 @@ Creating a variable is as simple as
 >>> x.args
 ('x',)
 ```
+
+Note: All op subclasses have a member variable `args` that returns all the arguments the op was created with.
 
 ### Evaluation
 All ops have a built in eval method that evaluates the op, for Add, as an example, this means simply adding together the evaluated arguments. The eval method takes in an unspecified amout of keyword arguments, these are for any variables in the expression. Calling eval on an expression with the argument `x = Const(3)` will set the value of every variable with the name `x` in the expression to three and then evaluate. Not specifying a value for any variables in the expression will raise an error.
