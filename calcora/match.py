@@ -1,6 +1,6 @@
 from calcora.ops import BaseOps
 from calcora.ops import Op, Add, AnyOp, Const, Div, Exp, Ln, Log, Mul, Neg, Sub, Var
-from calcora.utils import is_any_op, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
+from calcora.utils import is_any_op, is_const_like, partial_eval, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
 
 from typing import Callable, Dict, Iterable, List, Optional, TypeGuard
 
@@ -69,10 +69,15 @@ SymbolicPatternMatcher = PatternMatcher([
 
   Pattern(Exp(Const(1), AnyOp()), lambda x: Const(1)),
 
-  Pattern(Log(ConstLike('x'), ConstLike('x')), lambda x: Const(1)),
+  Pattern(Log(ConstLike('x'), ConstLike('x')), lambda x: Const(1)), # Log_x(x) = 1
+
+  Pattern(Add(MatchedSymbol('x'), Neg(MatchedSymbol('x'))), lambda x: Const(0)), # x - x = 0
 
   Pattern(Mul(MatchedSymbol('x'), Exp(MatchedSymbol(name='x'), 
                                                 Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
+  
+  Pattern(Mul(MatchedSymbol('x'), MatchedSymbol('x')), lambda x: Exp(x, Const(2))), # x * x = x^2
+
   
   Pattern(Add(MatchedSymbol('x'), Mul(ConstLike('y'), MatchedSymbol('x'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + yx = (y+1)x where y is a constant
   Pattern(Add(MatchedSymbol('x'), Mul(MatchedSymbol('x'), ConstLike('y'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + xy = (y+1)x where y is a constant
@@ -89,86 +94,3 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Mul(Exp(MatchedSymbol('x'), NamedAny('y')), Exp(MatchedSymbol('x'), NamedAny('z'))), lambda x,y,z: Exp(x, Add(y, z))),    # x^y * x^z = x^(y+z)
   Pattern(Exp(Exp(NamedAny('x'), NamedAny('y')), NamedAny('z')), lambda x,y,z: Exp(x, Mul(y, z))),                                  # (x^y)^z = x^(y*z)
 ])
-if __name__ == '__main__':
-  pm = SymbolicPatternMatcher
-
-  test_expression = Add(
-    Add(Mul(Const(1), Neg(Neg(Const(5)))), Const(0)),  # Should simplify to 5
-    Add(Mul(Const(0), Const(10)), Mul(Const(7), Const(1)))  # Should simplify to 7
-  )
-
-  test_expression = Add(
-                      Mul(
-                        Add(
-                          Mul(
-                            Add(Var('x'), Const(0)),            # (x + 0)
-                            Mul(Var('y'), Const(1))              # * (y * 1)
-                          ),
-                          Mul(
-                            Add(Const(0), Var('z')),              # (0 + z)
-                            Mul(Const(1), Add(Var('a'), Var('b')))  # * (1 * (a + b))
-                          )
-                        ),
-                        Mul(
-                          Add(
-                            Var('c'),                             # c
-                            Exp(Var('d'), Const(0))                # + (d^0) = 1
-                          ),
-                          Mul(
-                            Add(
-                              Mul(Var('e'), Const(1)),            # (e * 1)
-                              Neg(Neg(Var('f')))                   # + (-(-f)) = f
-                            ),
-                            Mul(Var('g'), Const(0))                 # * (g * 0) = 0
-                          )
-                        )
-                      ),
-                      Add(
-                        Mul(
-                          Var('h'),                              # h
-                          Exp(Var('h'), Neg(Const(1)))          # * (h^(-1))
-                        ),
-                        Mul(
-                          Neg(Neg(Const(0))),                    # + (-(-0)) = 0
-                          Add(
-                            Var('i'),                            # i
-                            Var('j')                             # + j
-                          )
-                        )
-                      )
-                    )
-  
-  # test_expression = Add(Var('x'), Mul(Const(2), Var('x')))
-  # test_expression = Add(Mul(Const(234), Var('x')), Mul(Const(2), Var('x')))
-  # test_expression = Add(
-  #                     Add(
-  #                       Add(
-  #                         Add(Var('x'), Const(0)),  # (x + 0)
-  #                         Mul(Mul(Var('y'), Var('z')), Const(1))  # y * z * 1
-  #                       ),
-  #                       Add(
-  #                         Neg(Neg(Mul(Var('a'), Var('b')))),  # -(-(a * b))
-  #                         Mul(Var('c'), Exp(Var('c'), Neg(Const(1))))  # c * c^(-1)
-  #                       )
-  #                     ),
-
-  #                     Add(
-  #                       Add(
-  #                         Add(Var('x'), Mul(Const(2), Var('x'))),  # x + 2x
-  #                         Add(
-  #                           Mul(Var('x'), Const(3)),  # x * 3
-  #                           Mul(Var('x'), Const(2))   # x * 2
-  #                         )
-  #                       ),
-  #                       Add(
-  #                         Exp(Const(0), Var('x')),  # 0^x
-  #                         Exp(Var('x'), Const(0))   # x^0
-  #                       )
-  #                     )
-  #                   )
-
-
-  print(f"Original expression: {test_expression}")
-  simplified_expr = pm.match(test_expression)
-
-  print(f"Simplified expression: {simplified_expr}")

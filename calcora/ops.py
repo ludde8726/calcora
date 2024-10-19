@@ -212,10 +212,3 @@ class AnyOp(Op):
     self.name = name
     self.assert_const_like = assert_const_like
     super().__init__()
-  
-if __name__ == '__main__':
-  x = Var('x')
-  y = Var('y')
-
-  expr = ((x + 3) / y) * 3 + x * 9
-  print(expr)

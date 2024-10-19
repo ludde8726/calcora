@@ -5,5 +5,7 @@ __pycache__/
 .env
 .venv
 
-untracked/
+calcora/untracked/
+calcora.egg-info/
+
 testing.py
