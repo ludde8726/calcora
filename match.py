@@ -16,14 +16,13 @@ def is_any_op(op: Op) -> TypeGuard[AnyOp]:
 def is_log_op(op: Op) -> TypeGuard[Log]:
   return op.fxn == BaseOps.Log
 
-def is_const_like(op: Op) -> bool:
+def is_const_like(op: Op):
   if op.fxn == BaseOps.Const: return True
-  if op.fxn == BaseOps.Neg and op.args[0].fxn == BaseOps.Const: return True
-  return False
+  if op.fxn == BaseOps.Var: return False
+  return all(is_const_like(arg) for arg in op.args)
 
 def reconstruct_op(op: Op, *args):
-  if is_log_op(op) and op.natural:
-    return Ln(args[0])
+  if is_log_op(op) and op.natural: return Ln(args[0])
   return op.__class__(*args)
 
 ConstLike = lambda name: AnyOp(name=name, assert_const_like=True)
@@ -221,6 +220,6 @@ if __name__ == '__main__':
   print(f"Original expression: {test_expression}")
   print(f"Original expression eval: {test_expression}")
   simplified_expr = pm.match(test_expression)
-  # simplified_expr = pm.match(simplified_expr)
+
   print(f"Simplified expression: {simplified_expr}")
   print(f"Simplified expression eval: {simplified_expr}") # 1+Var('i')+Var('j)
