@@ -1,168 +1,92 @@
 from __future__ import annotations
-
-from enum import auto, Enum
 import math
-from typing import Tuple, Union
 
-class BaseOps(Enum):
-  @staticmethod
-  def _generate_next_value_(name, start, count, last_values):
-    return name
-  
-  # Special ops
-  Const = auto()
-  Var = auto()
+from calcora.expression import Expr
 
-  # Base ops
-  Neg = auto()
-  Add = auto()
-  Mul = auto()
-  Pow = auto()
-  Log = auto()
-
-  # NoOps
-  AnyOp = auto()
-
-class Op:
-  def __init__(self, *args) -> None:
-    self.args: Tuple[Op, ...] = args
-    assert self.__class__.__name__ in [op.value for op in BaseOps]
-    self.fxn: BaseOps = BaseOps(self.__class__.__name__)
-
-  def __eq__(self, other):
-    return isinstance(other, Op) and self.fxn == other.fxn and self.args == other.args
-  
-  @staticmethod
-  def const_cast(x: Union[Op, int, float]) -> Op:
-    if not isinstance(x, Op) and not isinstance(x, int) and not isinstance(x, float): raise ValueError(f'Cannot cast type {type(x)} to type {type(Const(0))}') # Note: This is not optional
-    if isinstance(x, Op): return x
-    return Const(x)
-  
-  def __add__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.const_cast(other)
-    return Add(self, other)
-  
-  def __neg__(self) -> Op: return Neg(self)
-  
-  def __sub__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.const_cast(other)
-    return Sub(self, other)
-  
-  def __mul__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.const_cast(other)
-    return Mul(self, other)
-  
-  def __truediv__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.const_cast(other)
-    return Div(self, other)
-  
-  def __pow__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.const_cast(other)
-    return Pow(self, other)
-  
-  __radd__ = __add__
-  __rmul__ = __mul__
-  
-  def __rsub__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.const_cast(other)
-    return Sub(other, self)
-  
-  def __rtruediv__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.const_cast(other)
-    return Div(other, self)
-
-  def __rpow__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.const_cast(other)
-    return Pow(other, self)
-  
-  def differentiate(self, var: Var) -> Op: raise NotImplementedError()
-
-  def eval(self, **kwargs: Op) -> float: raise NotImplementedError()
-  
-class Var(Op):
+class Var(Expr):
   def __init__(self, name: str) -> None:
     self.name = name
     super().__init__(name)
   
-  def differentiate(self, var: Var) -> Op: 
+  def differentiate(self, var: Var) -> Expr: 
     return Const(1) if self == var else Const(0)
   
-  def eval(self, **kwargs: Op) -> float:
+  def eval(self, **kwargs: Expr) -> float:
     if self.name in kwargs: return kwargs[self.name].eval()
     raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
 
   def __repr__(self) -> str:
     return self.name
   
-class Const(Op):
+class Const(Expr):
   def __init__(self, x: float) -> None:
     assert x >= 0
     self.x = x
     super().__init__(x)
   
-  def eval(self, **kwargs: Op) -> float:
+  def eval(self, **kwargs: Expr) -> float:
     return self.x
   
-  def differentiate(self, var: Var) -> Op: return Const(0)
+  def differentiate(self, var: Var) -> Expr: return Const(0)
   
   def __repr__(self) -> str:
     return f'{self.x}'
   
-class Add(Op):
-  def __init__(self, x: Op, y: Op) -> None:
+class Add(Expr):
+  def __init__(self, x: Expr, y: Expr) -> None:
     self.x = x
     self.y = y
     super().__init__(x, y)
 
-  def eval(self, **kwargs: Op):
+  def eval(self, **kwargs: Expr):
     return self.x.eval(**kwargs) + self.y.eval(**kwargs)
   
-  def differentiate(self, var: Var) -> Op:
+  def differentiate(self, var: Var) -> Expr:
     return Add(self.x.differentiate(var), self.y.differentiate(var))
   
   def __repr__(self) -> str:
     return f'({self.x} + {self.y})'
 
-class Neg(Op):
-  def __init__(self, x: Op) -> None:
+class Neg(Expr):
+  def __init__(self, x: Expr) -> None:
     self.x = x
     super().__init__(x)
 
-  def eval(self, **kwargs: Op) -> float:
+  def eval(self, **kwargs: Expr) -> float:
     return -self.x.eval(**kwargs)
   
-  def differentiate(self, var: Var) -> Op:
+  def differentiate(self, var: Var) -> Expr:
     return Neg(self.x.differentiate(var))
   
   def __repr__(self) -> str:
     return f'-({self.x})'
   
-class Mul(Op):
-  def __init__(self, x: Op, y: Op) -> None:
+class Mul(Expr):
+  def __init__(self, x: Expr, y: Expr) -> None:
     self.x = x
     self.y = y
     super().__init__(x, y)
 
-  def eval(self, **kwargs: Op) -> float:
+  def eval(self, **kwargs: Expr) -> float:
     return self.x.eval(**kwargs) * self.y.eval(**kwargs)
   
-  def differentiate(self, var: Var) -> Op:
+  def differentiate(self, var: Var) -> Expr:
     return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
   
   def __repr__(self) -> str:
     return f'({self.x} * {self.y})'
 
-class Log(Op):
-  def __init__(self, x: Op, base: Op = Const(10), natrual: bool = False) -> None:
+class Log(Expr):
+  def __init__(self, x: Expr, base: Expr = Const(10), natrual: bool = False) -> None:
     self.x = x
     self.base = base
     self.natural = natrual
     super().__init__(x, base)
   
-  def eval(self, **kwargs: Op) -> float:
+  def eval(self, **kwargs: Expr) -> float:
     return math.log(self.x.eval(**kwargs), self.base.eval(**kwargs))
   
-  def differentiate(self, var: Var) -> Op:
+  def differentiate(self, var: Var) -> Expr:
     return Div(
               Sub(
                 Div(Mul(self.x.differentiate(var), Ln(self.base)), self.x), 
@@ -173,8 +97,8 @@ class Log(Op):
   def __repr__(self) -> str:
     return f'log_{self.base}({self.x})' if not self.natural else f'ln({self.x})'
   
-class Pow(Op):
-  def __init__(self, x: Op, y: Op) -> None:
+class Pow(Expr):
+  def __init__(self, x: Expr, y: Expr) -> None:
     self.x = x
     self.y = y
     super().__init__(x, y)
@@ -182,27 +106,27 @@ class Pow(Op):
   def eval(self, **kwargs) -> float:
     return self.x.eval(**kwargs) ** self.y.eval(**kwargs)
   
-  def differentiate(self, var: Var) -> Op:
+  def differentiate(self, var: Var) -> Expr:
     return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
                Mul(Mul(Pow(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
   
   def __repr__(self) -> str:
     return f'({self.x})^({self.y})'
   
-class Div(Op):
-  def __new__(cls, x: Op, y: Op) -> Op:
+class Div(Expr):
+  def __new__(cls, x: Expr, y: Expr) -> Expr:
     if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
     return Mul(x, Pow(y, Neg(Const(1))))
   
-class Sub(Op):
-  def __new__(cls, x: Op, y: Op) -> Op:
+class Sub(Expr):
+  def __new__(cls, x: Expr, y: Expr) -> Expr:
     return Add(x, Neg(y))
   
-class Ln(Op):
-  def __new__(cls, x: Op) -> Op:
+class Ln(Expr):
+  def __new__(cls, x: Expr) -> Expr:
     return Log(x, Const(math.e), natrual=True)
   
-class AnyOp(Op):
+class AnyOp(Expr):
   def __init__(self, match: bool = False, name: str="x", assert_const_like=False) -> None:
     self.match = match
     self.name = name

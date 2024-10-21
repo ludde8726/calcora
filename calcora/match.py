@@ -1,16 +1,16 @@
-from calcora.ops import BaseOps
-from calcora.ops import Op, Add, AnyOp, Const, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
+from calcora.expression import BaseOps, Expr
+from calcora.ops import Add, AnyOp, Const, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
 from calcora.utils import is_op_type, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
 
 from typing import Callable, Dict, List, Optional
 
 class Pattern:
-  def __init__(self, pattern: Op, replacement: Callable[..., Op]) -> None:
+  def __init__(self, pattern: Expr, replacement: Callable[..., Expr]) -> None:
     self.pattern = pattern
     self.replacement = replacement
-    self._binding: Dict[str, Op] = {}
+    self._binding: Dict[str, Expr] = {}
 
-  def match(self, op: Op) -> Op:
+  def match(self, op: Expr) -> Expr:
     self._binding = {}
     new_args = [self.match(arg) for arg in op.args] if op.fxn != BaseOps.Const and op.fxn != BaseOps.Var else op.args
     if op.fxn == BaseOps.Const: return op
@@ -20,7 +20,7 @@ class Pattern:
         return self.replacement(**self._binding)
     return reconstruct_op(op, *new_args)
   
-  def _match(self, op: Op, subpattern: Op) -> bool:
+  def _match(self, op: Expr, subpattern: Expr) -> bool:
     if not (len(op.args) == len(subpattern.args)) and not subpattern.fxn == BaseOps.AnyOp: return False
     
     if is_op_type(subpattern, AnyOp):
@@ -44,8 +44,8 @@ class PatternMatcher:
   def add_rules(self, patterns: List[Pattern]):
     self.patterns.extend(patterns)
   
-  def match(self, expression: Op):
-    simplified_expr: Op = expression
+  def match(self, expression: Expr):
+    simplified_expr: Expr = expression
     for pattern in self.patterns:
       simplified_expr = pattern.match(simplified_expr)
     if simplified_expr != expression: simplified_expr = self.match(simplified_expr)

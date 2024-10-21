@@ -1,11 +1,12 @@
-from calcora.ops import Op, Const, Add, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
+from calcora.expression import Expr
+from calcora.ops import Const, Add, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
 from calcora.match import SymbolicPatternMatcher
 from calcora.utils import is_const_like, partial_eval
 
 import random
 import unittest
 
-def generate_random_expression(depth: int, exponents: bool = False) -> Op:
+def generate_random_expression(depth: int, exponents: bool = False) -> Expr:
   if depth == 1:
     return Const(random.uniform(1, 10))
   else:
