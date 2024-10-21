@@ -164,14 +164,8 @@ class Log(Op):
   def differentiate(self, var: Var) -> Op:
     return Div(
               Sub(
-                Div(
-                  Mul(self.x.differentiate(var), Ln(self.base)), 
-                  self.x
-                ), 
-                Div(
-                  Mul(self.base.differentiate(var), Ln(self.x)), 
-                  self.base)
-                ), 
+                Div(Mul(self.x.differentiate(var), Ln(self.base)), self.x), 
+                Div(Mul(self.base.differentiate(var), Ln(self.x)), self.base)), 
               Pow(Ln(self.base), Const(2))
             )
   
@@ -217,4 +211,4 @@ class AnyOp(Op):
 if __name__ == "__main__":
   x = Var('x')
   expr = x / 2 + 4
-  print(expr.eval(x=x))
+  print(expr.eval(x=Const(.2)))

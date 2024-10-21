@@ -2,7 +2,7 @@ from calcora.ops import BaseOps
 from calcora.ops import Op, Add, AnyOp, Const, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
 from calcora.utils import is_any_op, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
 
-from typing import Callable, Dict, Iterable, List, Optional, TypeGuard
+from typing import Callable, Dict, List, Optional
 
 class Pattern:
   def __init__(self, pattern: Op, replacement: Callable[..., Op]) -> None:
