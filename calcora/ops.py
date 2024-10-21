@@ -9,11 +9,12 @@ class BaseOps(Enum):
   def _generate_next_value_(name, start, count, last_values):
     return name
   
-  # Base ops
+  # Special ops
   Const = auto()
   Var = auto()
-  Neg = auto()
 
+  # Base ops
+  Neg = auto()
   Add = auto()
   Mul = auto()
   Pow = auto()
@@ -32,46 +33,46 @@ class Op:
     return isinstance(other, Op) and self.fxn == other.fxn and self.args == other.args
   
   @staticmethod
-  def cast(x: Union[Op, int, float]) -> Op:
-    if not isinstance(x, Op) and not isinstance(x, int) and not isinstance(x, float): raise ValueError(f'Cannot cast type {type(x)} to Op')
+  def const_cast(x: Union[Op, int, float]) -> Op:
+    if not isinstance(x, Op) and not isinstance(x, int) and not isinstance(x, float): raise ValueError(f'Cannot cast type {type(x)} to type {type(Const(0))}') # Note: This is not optional
     if isinstance(x, Op): return x
     return Const(x)
   
   def __add__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.cast(other)
+    other = Op.const_cast(other)
     return Add(self, other)
   
   def __neg__(self) -> Op: return Neg(self)
   
   def __sub__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.cast(other)
+    other = Op.const_cast(other)
     return Sub(self, other)
   
   def __mul__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.cast(other)
+    other = Op.const_cast(other)
     return Mul(self, other)
   
   def __truediv__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.cast(other)
+    other = Op.const_cast(other)
     return Div(self, other)
   
   def __pow__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.cast(other)
+    other = Op.const_cast(other)
     return Pow(self, other)
   
   __radd__ = __add__
   __rmul__ = __mul__
   
   def __rsub__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.cast(other)
+    other = Op.const_cast(other)
     return Sub(other, self)
   
   def __rtruediv__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.cast(other)
+    other = Op.const_cast(other)
     return Div(other, self)
 
   def __rpow__(self, other: Union[Op, int, float]) -> Op:
-    other = Op.cast(other)
+    other = Op.const_cast(other)
     return Pow(other, self)
   
   def differentiate(self, var: Var) -> Op: raise NotImplementedError()

@@ -1,11 +1,12 @@
+from calcora.globals import Settings, PrintOptions
+
 from calcora.ops import Op
-from calcora.ops import AnyOp, BaseOps, Const, Log, Ln, Neg
+from calcora.ops import AnyOp, BaseOps, Add, Const, Log, Ln, Mul, Neg, Pow, Var
 
-from typing import TypeGuard
+from typing import Type, TypeGuard, TypeVar
 
-def is_any_op(op: Op) -> TypeGuard[AnyOp]: return op.fxn == BaseOps.AnyOp
-
-def is_log_op(op: Op) -> TypeGuard[Log]: return op.fxn == BaseOps.Log
+T = TypeVar('T', bound=Op)
+def is_op_type(op: Op, op_type: Type[T]) -> TypeGuard[T]: return op.fxn == BaseOps(op_type.__name__)
 
 def is_const_like(op: Op):
   if op.fxn == BaseOps.Const: return True
@@ -13,7 +14,7 @@ def is_const_like(op: Op):
   return all(is_const_like(arg) for arg in op.args)
 
 def reconstruct_op(op: Op, *args):
-  if is_log_op(op) and op.natural: return Ln(args[0])
+  if is_op_type(op, Log) and op.natural: return Ln(args[0])
   return op.__class__(*args)
 
 def partial_eval(op: Op) -> Op:
@@ -22,6 +23,20 @@ def partial_eval(op: Op) -> Op:
     op = reconstruct_op(op, *new_args)
   if is_const_like(op): return Const(op.eval()) if op.eval() >= 0 else Neg(Const(abs(op.eval())))
   return op
+
+def pretty_print(op: Op) -> str:
+  if Settings.Printing == PrintOptions.Class:
+    if is_op_type(op, Add): return f'Add({pretty_print(op.x)}, {pretty_print(op.y)})'
+    elif is_op_type(op, Neg): return f'Neg({pretty_print(op.x)})'
+    elif is_op_type(op, Mul): return f'Mul({pretty_print(op.x)}, {pretty_print(op.y)})'
+    elif is_op_type(op, Pow): return f'Pow({pretty_print(op.x)}, {pretty_print(op.y)})'
+    elif is_op_type(op, Log): 
+      return f'Log({pretty_print(op.x)}, {pretty_print(op.base)})' if not op.natural else f'Ln({pretty_print(op.x)})'
+    elif is_op_type(op, Const): return f'Const({op.x})'
+    elif is_op_type(op, Var): return f'Var({op.name})'
+    return 'NoOp'
+  else:
+    return repr(op)
 
 ConstLike = lambda name: AnyOp(name=name, assert_const_like=True)
 NamedAny = lambda name: AnyOp(name=name)

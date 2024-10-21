@@ -1,6 +1,6 @@
 from calcora.ops import BaseOps
 from calcora.ops import Op, Add, AnyOp, Const, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
-from calcora.utils import is_any_op, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
+from calcora.utils import is_op_type, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
 
 from typing import Callable, Dict, List, Optional
 
@@ -23,7 +23,7 @@ class Pattern:
   def _match(self, op: Op, subpattern: Op) -> bool:
     if not (len(op.args) == len(subpattern.args)) and not subpattern.fxn == BaseOps.AnyOp: return False
     
-    if is_any_op(subpattern):
+    if is_op_type(subpattern, AnyOp):
       if subpattern.assert_const_like and not is_const_like(op): return False
       if subpattern.match and subpattern.name in self._binding:
         return self._binding[subpattern.name] == op
@@ -70,6 +70,9 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Pow(Const(1), AnyOp()), lambda x: Const(1)), # 1 ^ x = 1
   Pattern(Pow(AnyOp(), Const(1)), lambda x: x), # x ^ 1 = x
 
+  Pattern(Mul(AnyOp(), Neg(Const(1))), lambda x: Neg(x)), # x * (-1) = -x
+  Pattern(Mul(Neg(Const(1)), AnyOp()), lambda x: Neg(x)), # (-1) * x = -x
+
   Pattern(Log(ConstLike('x'), ConstLike('x')), lambda x: Const(1)), # Log_x(x) = 1
 
   Pattern(Add(MatchedSymbol('x'), Neg(MatchedSymbol('x'))), lambda x: Const(0)), # x - x = 0
@@ -78,7 +81,6 @@ SymbolicPatternMatcher = PatternMatcher([
                                                 Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
   
   Pattern(Mul(MatchedSymbol('x'), MatchedSymbol('x')), lambda x: Pow(x, Const(2))), # x * x = x^2
-
   
   Pattern(Add(MatchedSymbol('x'), Mul(ConstLike('y'), MatchedSymbol('x'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + yx = (y+1)x where y is a constant
   Pattern(Add(MatchedSymbol('x'), Mul(MatchedSymbol('x'), ConstLike('y'))), lambda x,y: Mul(Const(Add(y, Const(1)).eval()), x)), # x + xy = (y+1)x where y is a constant
