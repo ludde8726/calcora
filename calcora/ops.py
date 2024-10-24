@@ -2,7 +2,7 @@ from __future__ import annotations
 import math
 
 from calcora.expression import Expr
-from calcora.printing import Printer
+from calcora.printing.printing import Printer
 
 class Var(Expr):
   def __init__(self, name: str) -> None:

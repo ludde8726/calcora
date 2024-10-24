@@ -1,5 +1,6 @@
 import calcora as c
 from calcora.expression import Expr
+from calcora.globals import PrintOptions
 from calcora.match import SymbolicPatternMatcher
 from calcora.utils import is_const_like, partial_eval
 
@@ -196,10 +197,11 @@ class TestPatternMatcher(unittest.TestCase):
     expected =  Const(1)
     self.assertEqual(self.pm.match(test_expression), expected)
 
-  def test_simplify_random_expressions(self):
+  def test_simplify_random_expressions_and_compare_values(self):
     for _ in range(50):
-      expr = generate_random_expression(random.randint(1, 12), exponents=True)
-      self.pm.match(expr)
+      expr = generate_random_expression(random.randint(1, 12), exponents=False)
+      simplified_expr = self.pm.match(expr)
+      self.assertEqual(expr.eval(), simplified_expr.eval())
 
 class TestOpClasses(unittest.TestCase):
   def test_const_init(self):
@@ -265,15 +267,16 @@ class TestOpClasses(unittest.TestCase):
     expected = Mul(Add(Pow(Var('x'), Const(2)), Var('y')), Sub(Var('z'), Const(3)))
     self.assertEqual(expr, expected)
 
-  # def test_random_expressions_without_exponents(self):
-  #   for _ in range(200):
-  #     expr = generate_random_expression(random.randint(1, 12), exponents=False)
-  #     self.assertEqual(eval(repr(expr).replace('^', '**')), expr.eval())
+  def test_random_expressions_without_exponents(self):
+    for _ in range(200):
+      c.Printer.Settings.Rewrite = False
+      expr = generate_random_expression(random.randint(1, 4), exponents=False)
+      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=5e-6)
 
-  # def test_random_expressions_with_exponents(self):
-  #   for _ in range(200):
-  #     expr = generate_random_expression(random.randint(1, 3), exponents=True)
-  #     self.assertEqual(eval(repr(expr).replace('^', '**')), expr.eval())
+  def test_random_expressions_with_exponents(self):
+    for _ in range(200):
+      expr = generate_random_expression(random.randint(1, 3), exponents=True)
+      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=5e-6)
 
 if __name__ == '__main__':
   unittest.main()
