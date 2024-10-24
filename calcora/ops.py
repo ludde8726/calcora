@@ -2,6 +2,7 @@ from __future__ import annotations
 import math
 
 from calcora.expression import Expr
+from calcora.printing import Printer
 
 class Var(Expr):
   def __init__(self, name: str) -> None:
@@ -15,8 +16,7 @@ class Var(Expr):
     if self.name in kwargs: return kwargs[self.name].eval()
     raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
 
-  def __repr__(self) -> str:
-    return self.name
+  def __repr__(self) -> str: return Printer._print(self)
   
 class Const(Expr):
   def __init__(self, x: float) -> None:
@@ -29,8 +29,7 @@ class Const(Expr):
   
   def differentiate(self, var: Var) -> Expr: return Const(0)
   
-  def __repr__(self) -> str:
-    return f'{self.x}'
+  def __repr__(self) -> str: return Printer._print(self)
   
 class Add(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
@@ -44,8 +43,7 @@ class Add(Expr):
   def differentiate(self, var: Var) -> Expr:
     return Add(self.x.differentiate(var), self.y.differentiate(var))
   
-  def __repr__(self) -> str:
-    return f'({self.x} + {self.y})'
+  def __repr__(self) -> str: return Printer._print(self)
 
 class Neg(Expr):
   def __init__(self, x: Expr) -> None:
@@ -58,8 +56,7 @@ class Neg(Expr):
   def differentiate(self, var: Var) -> Expr:
     return Neg(self.x.differentiate(var))
   
-  def __repr__(self) -> str:
-    return f'-({self.x})'
+  def __repr__(self) -> str: return Printer._print(self)
   
 class Mul(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
@@ -73,14 +70,12 @@ class Mul(Expr):
   def differentiate(self, var: Var) -> Expr:
     return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
   
-  def __repr__(self) -> str:
-    return f'({self.x} * {self.y})'
+  def __repr__(self) -> str: return Printer._print(self)
 
 class Log(Expr):
-  def __init__(self, x: Expr, base: Expr = Const(10), natrual: bool = False) -> None:
+  def __init__(self, x: Expr, base: Expr = Const(10)) -> None:
     self.x = x
     self.base = base
-    self.natural = natrual
     super().__init__(x, base)
   
   def eval(self, **kwargs: Expr) -> float:
@@ -94,8 +89,7 @@ class Log(Expr):
               Pow(Ln(self.base), Const(2))
             )
   
-  def __repr__(self) -> str:
-    return f'log_{self.base}({self.x})' if not self.natural else f'ln({self.x})'
+  def __repr__(self) -> str: return Printer._print(self)
   
 class Pow(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
@@ -110,8 +104,7 @@ class Pow(Expr):
     return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
                Mul(Mul(Pow(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
   
-  def __repr__(self) -> str:
-    return f'({self.x})^({self.y})'
+  def __repr__(self) -> str: return Printer._print(self)
   
 class Div(Expr):
   def __new__(cls, x: Expr, y: Expr) -> Expr:
@@ -124,7 +117,7 @@ class Sub(Expr):
   
 class Ln(Expr):
   def __new__(cls, x: Expr) -> Expr:
-    return Log(x, Const(math.e), natrual=True)
+    return Log(x, Const(math.e))   
   
 class AnyOp(Expr):
   def __init__(self, match: bool = False, name: str="x", assert_const_like=False) -> None:

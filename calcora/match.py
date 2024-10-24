@@ -1,5 +1,5 @@
 from calcora.expression import BaseOps, Expr
-from calcora.ops import Add, AnyOp, Const, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
+from calcora.ops import Add, AnyOp, Const, Pow, Log, Mul, Neg
 from calcora.utils import is_op_type, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
 
 from typing import Callable, Dict, List, Optional
