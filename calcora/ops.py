@@ -8,6 +8,7 @@ class Var(Expr):
   def __init__(self, name: str) -> None:
     self.name = name
     super().__init__(name)
+    self.priority = 999
   
   def differentiate(self, var: Var) -> Expr: 
     return Const(1) if self == var else Const(0)
@@ -23,6 +24,7 @@ class Const(Expr):
     assert x >= 0
     self.x = x
     super().__init__(x)
+    self.priority = 999
   
   def eval(self, **kwargs: Expr) -> float:
     return self.x
@@ -36,6 +38,7 @@ class Add(Expr):
     self.x = x
     self.y = y
     super().__init__(x, y)
+    self.priority = 1
 
   def eval(self, **kwargs: Expr):
     return self.x.eval(**kwargs) + self.y.eval(**kwargs)
@@ -49,6 +52,7 @@ class Neg(Expr):
   def __init__(self, x: Expr) -> None:
     self.x = x
     super().__init__(x)
+    self.priority = 0
 
   def eval(self, **kwargs: Expr) -> float:
     return -self.x.eval(**kwargs)
@@ -63,6 +67,7 @@ class Mul(Expr):
     self.x = x
     self.y = y
     super().__init__(x, y)
+    self.priority = 2
 
   def eval(self, **kwargs: Expr) -> float:
     return self.x.eval(**kwargs) * self.y.eval(**kwargs)
@@ -77,6 +82,7 @@ class Log(Expr):
     self.x = x
     self.base = base
     super().__init__(x, base)
+    self.priority = 4
   
   def eval(self, **kwargs: Expr) -> float:
     return math.log(self.x.eval(**kwargs), self.base.eval(**kwargs))
@@ -96,6 +102,7 @@ class Pow(Expr):
     self.x = x
     self.y = y
     super().__init__(x, y)
+    self.priority = 3
 
   def eval(self, **kwargs) -> float:
     return self.x.eval(**kwargs) ** self.y.eval(**kwargs)

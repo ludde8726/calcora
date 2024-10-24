@@ -32,6 +32,7 @@ class Expr:
     # Note: Hack for now, will refactor later
     assert self.__class__.__name__ in [op.value for op in BaseOps], f"Invalid op type {type(self.__class__.__name__)}"
     self.fxn: BaseOps = BaseOps(self.__class__.__name__)
+    self.priority : int = 0 # higher equals higher priority, ex multiplication before division, etc.
 
   def __eq__(self, other):
     return isinstance(other, Expr) and self.fxn == other.fxn and self.args == other.args
