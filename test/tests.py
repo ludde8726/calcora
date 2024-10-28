@@ -2,6 +2,7 @@ import calcora as c
 from calcora.expression import Expr
 from calcora.globals import PrintOptions
 from calcora.match import SymbolicPatternMatcher
+from calcora.printing.printing import Printer
 from calcora.utils import is_const_like, partial_eval
 
 import random
@@ -269,7 +270,7 @@ class TestOpClasses(unittest.TestCase):
 
   def test_random_expressions_without_exponents(self):
     for _ in range(200):
-      c.Printer.Settings.Rewrite = False
+      Printer.Settings.Rewrite = False
       expr = generate_random_expression(random.randint(1, 4), exponents=False)
       self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=5e-6)
 

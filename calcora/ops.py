@@ -2,7 +2,6 @@ from __future__ import annotations
 import math
 
 from calcora.expression import Expr
-from calcora.printing.printing import Printer
 
 class Var(Expr):
   def __init__(self, name: str) -> None:
@@ -16,8 +15,6 @@ class Var(Expr):
   def eval(self, **kwargs: Expr) -> float:
     if self.name in kwargs: return kwargs[self.name].eval()
     raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
-
-  def __repr__(self) -> str: return Printer._print(self)
   
 class Const(Expr):
   def __init__(self, x: float) -> None:
@@ -31,8 +28,6 @@ class Const(Expr):
   
   def differentiate(self, var: Var) -> Expr: return Const(0)
   
-  def __repr__(self) -> str: return Printer._print(self)
-  
 class Add(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
     self.x = x
@@ -45,8 +40,6 @@ class Add(Expr):
   
   def differentiate(self, var: Var) -> Expr:
     return Add(self.x.differentiate(var), self.y.differentiate(var))
-  
-  def __repr__(self) -> str: return Printer._print(self)
 
 class Neg(Expr):
   def __init__(self, x: Expr) -> None:
@@ -60,8 +53,6 @@ class Neg(Expr):
   def differentiate(self, var: Var) -> Expr:
     return Neg(self.x.differentiate(var))
   
-  def __repr__(self) -> str: return Printer._print(self)
-  
 class Mul(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
     self.x = x
@@ -74,8 +65,6 @@ class Mul(Expr):
   
   def differentiate(self, var: Var) -> Expr:
     return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
-  
-  def __repr__(self) -> str: return Printer._print(self)
 
 class Log(Expr):
   def __init__(self, x: Expr, base: Expr = Const(10)) -> None:
@@ -95,8 +84,6 @@ class Log(Expr):
               Pow(Ln(self.base), Const(2))
             )
   
-  def __repr__(self) -> str: return Printer._print(self)
-  
 class Pow(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
     self.x = x
@@ -110,8 +97,6 @@ class Pow(Expr):
   def differentiate(self, var: Var) -> Expr:
     return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
                Mul(Mul(Pow(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
-  
-  def __repr__(self) -> str: return Printer._print(self)
   
 class Div(Expr):
   def __new__(cls, x: Expr, y: Expr) -> Expr:

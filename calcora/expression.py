@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from enum import auto, Enum
-from typing import Tuple, Type, Union
+from typing import Tuple, Union
 
 import calcora as c
+# 
 
 class BaseOps(Enum):
   @staticmethod
@@ -29,10 +30,9 @@ class BaseOps(Enum):
 class Expr:
   def __init__(self, *args) -> None:
     self.args: Tuple[Expr, ...] = args
-    # Note: Hack for now, will refactor later
     assert self.__class__.__name__ in [op.value for op in BaseOps], f"Invalid op type {type(self.__class__.__name__)}"
     self.fxn: BaseOps = BaseOps(self.__class__.__name__)
-    self.priority : int = 0 # higher equals higher priority, ex multiplication before division, etc.
+    self.priority : int = 0 # higher equals higher priority, ex multiplication before addition, etc.
 
   def __eq__(self, other):
     return isinstance(other, Expr) and self.fxn == other.fxn and self.args == other.args
@@ -89,3 +89,7 @@ class Expr:
   def differentiate(self, var: c.Var) -> Expr: raise NotImplementedError() # type: ignore
 
   def eval(self, **kwargs: Expr) -> float: raise NotImplementedError()
+
+  def __repr__(self) -> str: 
+    from calcora.printing.printing import Printer
+    return Printer._print(self)
