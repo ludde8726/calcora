@@ -1,9 +1,14 @@
-from typing import Dict, Type, TypeGuard, TypeVar
+from __future__ import annotations
+
+from typing import Type, TYPE_CHECKING, TypeGuard, TypeVar
 
 import calcora as c
-from calcora.expression import BaseOps, Expr
+from calcora.globals import BaseOps
 
-T = TypeVar('T', bound=Expr)
+if TYPE_CHECKING:
+  from calcora.expression import Expr
+  T = TypeVar('T', bound=Expr)
+
 def is_op_type(op: Expr, op_type: Type[T]) -> TypeGuard[T]: return op.fxn == BaseOps(op_type.__name__)
 
 def is_const_like(op: Expr):

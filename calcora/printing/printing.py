@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING, cast
 
 import calcora as c
-from calcora.expression import Expr
-from calcora.printing.printops import PrintableSub, PrintableDiv, PrintableLn
+from calcora.globals import Settings, PrintOptions
+from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
 from calcora.printing.repr import Repr
 from calcora.utils import NamedAny, is_op_type, partial_eval
+
+if TYPE_CHECKING:
+  from calcora.expression import Expr
 
 class Printer():
   class Settings:
@@ -43,11 +47,11 @@ class Printer():
     if Printer.Settings.Rewrite: 
       from calcora.match import Pattern, PatternMatcher
       RewriteOpsPatternMatcher = PatternMatcher([
-        Pattern(c.Add(NamedAny('x'), c.Neg(NamedAny('y'))), lambda x,y: PrintableSub(x, y)),
-        Pattern(c.Mul(NamedAny('x'), c.Pow(NamedAny('y'), c.Neg(c.Const(1)))), lambda x,y: PrintableDiv(x, y)),
-        Pattern(c.Log(NamedAny('x'), c.Const(math.e)), lambda x: PrintableLn(x)),
+        Pattern(c.Add(NamedAny('x'), c.Neg(NamedAny('y'))), lambda x,y: PrintableSub(x, y)), # type: ignore
+        Pattern(c.Mul(NamedAny('x'), c.Pow(NamedAny('y'), c.Neg(c.Const(1)))), lambda x,y: PrintableDiv(x, y)), # type: ignore
+        Pattern(c.Log(NamedAny('x'), c.Const(math.e)), lambda x: PrintableLn(x)), # type: ignore
       ])
       expression = RewriteOpsPatternMatcher.match(expression)
-    if c.globals.Settings.Printing == c.globals.PrintOptions.Class: return Printer._print_classes(expression)
-    elif c.globals.Settings.Printing == c.globals.PrintOptions.Latex: return Printer._print_latex(expression)
+    if Settings.Printing == PrintOptions.Class: return Printer._print_classes(expression)
+    elif Settings.Printing == PrintOptions.Latex: return Printer._print_latex(expression)
     else: return Repr._print(expression)

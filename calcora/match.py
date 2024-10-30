@@ -1,8 +1,14 @@
-from calcora.expression import BaseOps, Expr
+from __future__ import annotations
+
+from typing import Callable, Dict, List, Optional, TYPE_CHECKING
+
+import calcora as c
+from calcora.globals import BaseOps
 from calcora.ops import Add, AnyOp, Const, Pow, Log, Mul, Neg
 from calcora.utils import is_op_type, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
 
-from typing import Callable, Dict, List, Optional
+if TYPE_CHECKING:
+  from calcora.expression import Expr
 
 class Pattern:
   def __init__(self, pattern: Expr, replacement: Callable[..., Expr]) -> None:

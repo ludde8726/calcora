@@ -1,6 +1,12 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import calcora as c
-from calcora.expression import Expr, BaseOps
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
+
+if TYPE_CHECKING:
+  from calcora.expression import Expr
 
 class Repr:
   @staticmethod
@@ -21,14 +27,14 @@ class Repr:
   def _print_PrintableSub(op: PrintableSub) -> str:
     x = Repr._print(op.x)
     y = Repr._print(op.y)
-    if op.x.priority < op.priority and not op.x.fxn == BaseOps.Neg: x = f'({x})'
-    if op.y.priority < op.priority or isinstance(op.y, PrintableSub) or op.y.fxn == BaseOps.Neg or op.y.fxn == BaseOps.Add: y = f'({y})'
+    if op.x.priority < op.priority and not isinstance(op.x, c.Neg): x = f'({x})'
+    if op.y.priority < op.priority or isinstance(op.y, PrintableSub) or isinstance(op.y, c.Neg) or isinstance(op.y, c.Add): y = f'({y})'
     return f'{x} - {y}'
   
   @staticmethod
   def _print_Neg(op: c.Neg) -> str:
     x = Repr._print(op.x)
-    if op.x.fxn != BaseOps.Const and op.fxn != BaseOps.Var: x = f'({x})'
+    if not (isinstance(op.x, c.Const) or isinstance(op.x, c.Var)): x = f'({x})'
     return f'-{x}'
   
   @staticmethod

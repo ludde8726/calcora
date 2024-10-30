@@ -1,31 +1,10 @@
 from __future__ import annotations
 
-from enum import auto, Enum
 from typing import Tuple, Union
 
 import calcora as c
-# 
-
-class BaseOps(Enum):
-  @staticmethod
-  def _generate_next_value_(name, start, count, last_values):
-    return name
-  
-  # Special ops
-  Const = auto()
-  Var = auto()
-
-  # Base ops
-  Neg = auto()
-  Add = auto()
-  Mul = auto()
-  Pow = auto()
-  Log = auto()
-
-  # NoOps
-  AnyOp = auto()
-  NoOp = auto()
-
+from calcora.globals import BaseOps
+from calcora.printing.printing import Printer
 
 class Expr:
   def __init__(self, *args) -> None:
@@ -86,10 +65,9 @@ class Expr:
     x = Expr.const_cast(x)
     return c.Pow(x, self)
   
-  def differentiate(self, var: c.Var) -> Expr: raise NotImplementedError() # type: ignore
+  def differentiate(self, var: c.Var) -> Expr: raise NotImplementedError()
 
   def eval(self, **kwargs: Expr) -> float: raise NotImplementedError()
 
   def __repr__(self) -> str: 
-    from calcora.printing.printing import Printer
-    return Printer._print(self)
+    return Printer._print(self) 
