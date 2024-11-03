@@ -23,7 +23,7 @@ def partial_eval(op: Expr) -> Expr:
   if op.fxn != BaseOps.Const and op.fxn != BaseOps.Var:
     new_args = [partial_eval(arg) for arg in op.args]
     op = reconstruct_op(op, *new_args)
-  if is_const_like(op): return c.Const(op.eval())
+  if is_const_like(op): return c.Number(op.eval())
   return op
 
 

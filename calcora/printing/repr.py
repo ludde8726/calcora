@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 import calcora as c
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
 
+from mpmath import mpf, mpc
+
 if TYPE_CHECKING:
   from calcora.expression import Expr
 
@@ -74,7 +76,13 @@ class Repr:
   
   @staticmethod
   def _print_Const(op: c.Const) -> str:
-    return f'{op.x}' if op.x.imag else f'{op.x.real}'
+    return f'{op.x}'
+  
+  @staticmethod
+  def _print_Complex(op: c.Complex) -> str:
+    x = Repr._print(op.real) if not isinstance(op.real, (mpf, mpc)) else op.real
+    y = Repr._print(op.imag) if not isinstance(op.imag, (mpf, mpc)) else op.imag
+    return f'{op.real} + {op.imag}i' if not isinstance(op.imag, c.Neg) else f'{op.real} - {op.imag.x}i'
   
   @staticmethod
   def _print_Var(op: c.Var) -> str:

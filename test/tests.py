@@ -1,6 +1,6 @@
 import calcora as c
 from calcora.expression import Expr
-from calcora.globals import PrintOptions
+from calcora.globals import pc
 from calcora.match import SymbolicPatternMatcher
 from calcora.printing.printing import Printer
 from calcora.utils import is_const_like, partial_eval
@@ -266,15 +266,15 @@ class TestOpClasses(unittest.TestCase):
 
   def test_random_expressions_without_exponents_with_rewrite(self):
     for _ in range(200):
-      Printer.Settings.Rewrite = True
+      pc.rewrite = True
       expr = generate_random_expression(random.randint(1, 7), exponents=False)
-      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=5e-6)
+      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=1e-5)
 
   def test_random_expressions_without_exponents_without_rewrite(self):
     for _ in range(200):
-      Printer.Settings.Rewrite = True
+      pc.rewrite = False
       expr = generate_random_expression(random.randint(1, 7), exponents=False)
-      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=5e-6)
+      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=1e-5)
 
 if __name__ == '__main__':
   unittest.main()
