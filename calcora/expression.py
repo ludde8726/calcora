@@ -5,6 +5,7 @@ from typing import Tuple, Union
 import calcora as c
 from calcora.globals import BaseOps
 from calcora.printing.printing import Printer
+from calcora.types import CalcoraNumber
 
 class Expr:
   def __init__(self, *args) -> None:
@@ -67,7 +68,7 @@ class Expr:
   
   def differentiate(self, var: c.Var) -> Expr: raise NotImplementedError()
 
-  def eval(self, **kwargs: Expr) -> float: raise NotImplementedError()
+  def eval(self, **kwargs: Expr) -> CalcoraNumber: raise NotImplementedError()
 
   def __repr__(self) -> str: 
     return Printer._print(self) 

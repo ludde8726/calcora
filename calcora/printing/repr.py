@@ -74,7 +74,7 @@ class Repr:
   
   @staticmethod
   def _print_Const(op: c.Const) -> str:
-    return f'{float(op.x)}'
+    return f'{op.x}' if op.x.imag else f'{op.x.real}'
   
   @staticmethod
   def _print_Var(op: c.Var) -> str:

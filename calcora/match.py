@@ -58,6 +58,7 @@ class PatternMatcher:
     return simplified_expr
   
 SymbolicPatternMatcher = PatternMatcher([
+  Pattern(Neg(Const(1)), lambda: Const(-1)),
   Pattern(Add(AnyOp(), Const(0)), lambda x: x), # x + 0 = x
   Pattern(Add(Const(0), AnyOp()), lambda x: x), # 0 + x = x
 
@@ -76,15 +77,15 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Pow(Const(1), AnyOp()), lambda x: Const(1)), # 1 ^ x = 1
   Pattern(Pow(AnyOp(), Const(1)), lambda x: x), # x ^ 1 = x
 
-  Pattern(Mul(AnyOp(), Neg(Const(1))), lambda x: Neg(x)), # x * (-1) = -x
-  Pattern(Mul(Neg(Const(1)), AnyOp()), lambda x: Neg(x)), # (-1) * x = -x
+  Pattern(Mul(AnyOp(), Const(-1)), lambda x: Neg(x)), # x * (-1) = -x
+  Pattern(Mul(Const(-1), AnyOp()), lambda x: Neg(x)), # (-1) * x = -x
 
   Pattern(Log(ConstLike('x'), ConstLike('x')), lambda x: Const(1)), # Log_x(x) = 1
 
   Pattern(Add(MatchedSymbol('x'), Neg(MatchedSymbol('x'))), lambda x: Const(0)), # x - x = 0
 
   Pattern(Mul(MatchedSymbol('x'), Pow(MatchedSymbol(name='x'), 
-                                                Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
+                                                Const(-1))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
   
   Pattern(Mul(MatchedSymbol('x'), MatchedSymbol('x')), lambda x: Pow(x, Const(2))), # x * x = x^2
   

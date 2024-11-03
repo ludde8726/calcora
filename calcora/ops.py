@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import math
+from typing import Union
 
 from calcora.expression import Expr
+from calcora.types import NumberLike, CalcoraNumber
+
+from mpmath import mpf, mpc, log
 
 class Var(Expr):
   def __init__(self, name: str) -> None:
@@ -13,19 +17,19 @@ class Var(Expr):
   def differentiate(self, var: Var) -> Expr: 
     return Const(1) if self == var else Const(0)
   
-  def eval(self, **kwargs: Expr) -> float:
+  def eval(self, **kwargs: Expr) -> CalcoraNumber:
     if self.name in kwargs: return kwargs[self.name].eval()
     raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
   
 class Const(Expr):
-  def __init__(self, x: float) -> None:
-    assert x >= 0
-    self.x = x
-    super().__init__(x)
+  def __init__(self, x: NumberLike) -> None:
+    if isinstance(x, (int, float, str, complex)): self.x = mpc(x)
+    elif isinstance(x, (mpf, mpc)): self.x = x
+    else: raise TypeError("Const must be initialized with an int, float, str, complex, mpf, or mpc.")
+    super().__init__(self.x)
     self.priority = 999
   
-  def eval(self, **kwargs: Expr) -> float:
-    return self.x
+  def eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x
   
   def differentiate(self, var: Var) -> Expr: return Const(0)
   
@@ -36,7 +40,7 @@ class Add(Expr):
     super().__init__(x, y)
     self.priority = 1
 
-  def eval(self, **kwargs: Expr):
+  def eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x.eval(**kwargs) + self.y.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
@@ -48,7 +52,7 @@ class Neg(Expr):
     super().__init__(x)
     self.priority = 0
 
-  def eval(self, **kwargs: Expr) -> float:
+  def eval(self, **kwargs: Expr) -> CalcoraNumber:
     return -self.x.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
@@ -61,7 +65,7 @@ class Mul(Expr):
     super().__init__(x, y)
     self.priority = 2
 
-  def eval(self, **kwargs: Expr) -> float:
+  def eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x.eval(**kwargs) * self.y.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
@@ -74,7 +78,7 @@ class Log(Expr):
     super().__init__(x, base)
     self.priority = 4
   
-  def eval(self, **kwargs: Expr) -> float:
+  def eval(self, **kwargs: Expr) -> CalcoraNumber: 
     return math.log(self.x.eval(**kwargs), self.base.eval(**kwargs))
   
   def differentiate(self, var: Var) -> Expr:
@@ -92,7 +96,7 @@ class Pow(Expr):
     super().__init__(x, y)
     self.priority = 3
 
-  def eval(self, **kwargs) -> float:
+  def eval(self, **kwargs) -> CalcoraNumber:
     return self.x.eval(**kwargs) ** self.y.eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
@@ -122,4 +126,4 @@ class AnyOp(Expr):
 if __name__ == "__main__":
   x = Var('x')
   expr = x / 2 + 4
-  print(expr.eval(x=Const(.2)))
+  print(Const(expr.eval(x=Const(1j))))

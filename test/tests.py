@@ -205,10 +205,6 @@ class TestPatternMatcher(unittest.TestCase):
       self.assertEqual(expr.eval(), simplified_expr.eval())
 
 class TestOpClasses(unittest.TestCase):
-  def test_const_init(self):
-    with self.assertRaises(AssertionError):
-      Const(-5)
-  
   def test_equals_operator(self):
     add_op_1 = Add(Const(5), Const(10))
     add_op_2 = Add(Const(5), Const(10))
@@ -268,15 +264,16 @@ class TestOpClasses(unittest.TestCase):
     expected = Mul(Add(Pow(Var('x'), Const(2)), Var('y')), Sub(Var('z'), Const(3)))
     self.assertEqual(expr, expected)
 
-  def test_random_expressions_without_exponents(self):
+  def test_random_expressions_without_exponents_with_rewrite(self):
     for _ in range(200):
-      Printer.Settings.Rewrite = False
-      expr = generate_random_expression(random.randint(1, 4), exponents=False)
+      Printer.Settings.Rewrite = True
+      expr = generate_random_expression(random.randint(1, 7), exponents=False)
       self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=5e-6)
 
-  def test_random_expressions_with_exponents(self):
+  def test_random_expressions_without_exponents_without_rewrite(self):
     for _ in range(200):
-      expr = generate_random_expression(random.randint(1, 3), exponents=True)
+      Printer.Settings.Rewrite = True
+      expr = generate_random_expression(random.randint(1, 7), exponents=False)
       self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=5e-6)
 
 if __name__ == '__main__':

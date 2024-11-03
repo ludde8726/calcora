@@ -27,7 +27,7 @@ class Printer():
     elif is_op_type(expression, c.Mul): return f'Mul({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.y)})'
     elif is_op_type(expression, c.Pow): return f'Pow({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.y)})'
     elif is_op_type(expression, c.Log): return f'Log({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.base)})'
-    elif is_op_type(expression, c.Const): return f'Const({float(expression.x)})'
+    elif is_op_type(expression, c.Const): return f'Const({expression.x})'
     elif is_op_type(expression, c.Var): return f'Var({expression.name})'
     raise AttributeError(f'Missing print options for op of type {type(expression)}')
 
