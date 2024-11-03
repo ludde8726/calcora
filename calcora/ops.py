@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import math
-from typing import Union
 
 from calcora.expression import Expr
 from calcora.types import NumberLike, CalcoraNumber, RealNumberLike
+from calcora import constants
 
 from mpmath import mpf, mpc, log
 
@@ -26,8 +26,7 @@ class Const(Expr):
     if isinstance(x, (int, float, str)): self.x = mpf(x)
     elif isinstance(x, mpf): self.x = x
     else: raise TypeError("Const must be initialized with an int, float, str, or mpf.")
-    if not (self.x.real >= 0 and self.x.imag == 0): 
-      raise ValueError("Const value must be a real, positive value!")
+    if not (self.x.real >= 0 and self.x.imag == 0): raise ValueError("Const value must be a real, positive value!")
     super().__init__(self.x)
     self.priority = 999
   
@@ -94,7 +93,7 @@ class Log(Expr):
     self.priority = 4
   
   def eval(self, **kwargs: Expr) -> CalcoraNumber: 
-    return math.log(self.x.eval(**kwargs), self.base.eval(**kwargs))
+    return log(self.x.eval(**kwargs), self.base.eval(**kwargs))
   
   def differentiate(self, var: Var) -> Expr:
     return Div(
@@ -132,13 +131,10 @@ class Ln(Expr):
     return Log(x, Const(math.e))   
   
 class AnyOp(Expr):
-  def __init__(self, match: bool = False, name: str="x", assert_const_like=False, assert_negative=False, assert_positive=False, assert_non_complex=False) -> None:
+  def __init__(self, match: bool = False, name: str="x", assert_const_like=False) -> None:
     self.match = match
     self.name = name
     self.assert_const_like = assert_const_like
-    self.assert_negative = assert_negative
-    self.assert_positive = assert_positive
-    self.assert_non_complex = assert_non_complex
     super().__init__()
 
 class Number(Expr):

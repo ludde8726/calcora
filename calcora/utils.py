@@ -26,7 +26,11 @@ def partial_eval(op: Expr) -> Expr:
   if is_const_like(op): return c.Number(op.eval())
   return op
 
+def diff(op: Expr, var: c.Var, degree: int = 1):
+  for _ in range(degree): op = op.differentiate(var)
+  return op
 
 ConstLike = lambda name: c.AnyOp(name=name, assert_const_like=True)
+MatchedConstLike = lambda name: c.AnyOp(name=name, match=True, assert_const_like=True)
 NamedAny = lambda name: c.AnyOp(name=name)
 MatchedSymbol = lambda name: c.AnyOp(name=name, match=True)

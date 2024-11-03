@@ -4,8 +4,9 @@ from typing import Callable, Dict, List, Optional, TYPE_CHECKING
 
 import calcora as c
 from calcora.globals import BaseOps
-from calcora.ops import Add, AnyOp, Const, Pow, Log, Mul, Neg
-from calcora.utils import is_op_type, is_const_like, reconstruct_op, ConstLike, MatchedSymbol, NamedAny
+from calcora.ops import Add, AnyOp, Complex, Const, Pow, Log, Mul, Neg
+from calcora.utils import is_op_type, is_const_like, reconstruct_op
+from calcora.utils import ConstLike, MatchedConstLike, MatchedSymbol, NamedAny
 
 if TYPE_CHECKING:
   from calcora.expression import Expr
@@ -79,7 +80,7 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Mul(AnyOp(), Neg(Const(1))), lambda x: Neg(x)), # x * (-1) = -x
   Pattern(Mul(Neg(Const(1)), AnyOp()), lambda x: Neg(x)), # (-1) * x = -x
 
-  Pattern(Log(ConstLike('x'), ConstLike('x')), lambda x: Const(1)), # Log_x(x) = 1
+  Pattern(Log(MatchedConstLike('x'), MatchedConstLike('x')), lambda x: Const(1)), # Log_x(x) = 1
 
   Pattern(Add(MatchedSymbol('x'), Neg(MatchedSymbol('x'))), lambda x: Const(0)), # x - x = 0
 
@@ -102,4 +103,6 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Mul(Pow(MatchedSymbol('x'), ConstLike('y')), MatchedSymbol('x')), lambda x,y: Pow(x, Const(Add(y, Const(1)).eval()))),    # x^y * x = x^(y+1) where y is a constant
   Pattern(Mul(Pow(MatchedSymbol('x'), NamedAny('y')), Pow(MatchedSymbol('x'), NamedAny('z'))), lambda x,y,z: Pow(x, Add(y, z))),    # x^y * x^z = x^(y+z)
   Pattern(Pow(Pow(NamedAny('x'), NamedAny('y')), NamedAny('z')), lambda x,y,z: Pow(x, Mul(y, z))),                                  # (x^y)^z = x^(y*z)
+
+  Pattern(Complex(NamedAny('x'), Const(0)), lambda x: x) # x + 0i = x
 ])
