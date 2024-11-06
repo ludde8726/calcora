@@ -4,7 +4,6 @@ import math
 
 from calcora.expression import Expr
 from calcora.types import NumberLike, CalcoraNumber, RealNumberLike
-from calcora import constants
 
 from mpmath import mpf, mpc, log
 

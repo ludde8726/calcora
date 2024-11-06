@@ -4,7 +4,6 @@ import math
 from typing import TYPE_CHECKING
 
 import calcora as c
-from calcora import constants
 from calcora.globals import pc, PrintOptions
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
 from calcora.printing.repr import Repr
