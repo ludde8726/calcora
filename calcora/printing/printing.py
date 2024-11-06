@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 
-from calcora.globals import pc, PrintOptions
+from calcora.globals import pc, PrintOptions, BaseOps
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
 from calcora.utils import partial_eval
 from calcora.core.registry import FunctionRegistry
@@ -14,19 +14,11 @@ if TYPE_CHECKING:
 class Printer():
   @staticmethod
   def _print_classes(expression: Expr) -> str:
-    # if isinstance(expression, PrintableSub): return f'Sub({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.y)})'
-    # if isinstance(expression, PrintableDiv): return f'Div({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.y)})'
-    # if isinstance(expression, PrintableLn): return f'Ln({Printer._print_classes(expression.x)})'
-    # elif is_op_type(expression, c.Add): return f'Add({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.y)})'
-    # elif is_op_type(expression, c.Neg): return f'Neg({Printer._print_classes(expression.x)})'
-    # elif is_op_type(expression, c.Mul): return f'Mul({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.y)})'
-    # elif is_op_type(expression, c.Pow): return f'Pow({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.y)})'
-    # elif is_op_type(expression, c.Log): return f'Log({Printer._print_classes(expression.x)}, {Printer._print_classes(expression.base)})'
-    # elif is_op_type(expression, c.Const): return f'Const({expression.x})'
-    # elif is_op_type(expression, c.Complex): return f'Complex({expression.real}, {expression.imag})'
-    # elif is_op_type(expression, c.Var): return f'Var({expression.name})'
-    # raise AttributeError(f'Missing print options for op of type {type(expression)}')
-    raise NotImplementedError('Latex printing has not yet been implemented, try setting calcora.globals.Settings.Printing to either calcora.globals.PrintOptions.Class or calcora.globals.PrintOptions.Regular')
+    if expression.fxn == BaseOps.Const: return f'Const({expression.x})' # type: ignore
+    elif expression.fxn == BaseOps.Var: return f'Var({expression.name})' # type: ignore
+    elif expression.fxn == BaseOps.AnyOp: return f'Any({expression.name}, match={expression.match}, const={expression.assert_const_like})' # type: ignore
+    args = ', '.join([Printer._print_classes(arg) for arg in expression.args])
+    return f'{expression.__class__.__name__}({args})'
 
   @staticmethod
   def _print_latex(expression: Expr) -> str:

@@ -14,7 +14,7 @@ class Number:
       if x.imag: return Complex(Const(x.real) if x.real >= 0 else Neg(Const(abs(x.real))), Const(x.imag) if x.imag >= 0 else Neg(Const(abs(x.imag))))
       else: return Const(x.real) if x.real >= 0 else Neg(Const(abs(x.real)))
     elif isinstance(x, str):
-      x = ''.join(x.split())
+      x = ''.join(x.split()).replace('i', 'j')
       x = complex(x)
       if x.imag: return Number(x)
       return Number(x.real) if x.real >= 0 else Neg(Number(abs(x.real)))

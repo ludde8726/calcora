@@ -177,6 +177,13 @@ class AnyOp(Expr):
     self.assert_const_like = assert_const_like
     super().__init__()
 
+  def eval(self, **kwargs) -> CalcoraNumber:
+    print('Warning! AnyOp cannot be evaluated, returning 0')
+    return 0
+  
+  def _print_repr(self) -> str:
+    return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
+
 FunctionRegistry.register(Var)
 FunctionRegistry.register(Const)
 FunctionRegistry.register(Complex)
