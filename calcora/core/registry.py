@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Type, TYPE_CHECKING
+from typing import Dict, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
 
 class FunctionRegistry:
-  _registry = {}
+  _registry : Dict[str, Type[Expr]] = {}
 
   @classmethod
   def register(cls, fxn: Type[Expr]) -> None:
