@@ -1,23 +1,16 @@
-import calcora as c
-from calcora.expression import Expr
-from calcora.globals import pc
-from calcora.match import SymbolicPatternMatcher
-from calcora.printing.printing import Printer
-from calcora.utils import is_const_like, partial_eval
+from __future__ import annotations
 
 import random
+from typing import TYPE_CHECKING
 import unittest
 
-Const = c.Const
-Add = c.Add
-Div = c.Div
-Pow = c.Pow
-Ln = c.Ln
-Log = c.Log
-Mul = c.Mul
-Neg = c.Neg
-Sub = c.Sub
-Var = c.Var
+from calcora.globals import pc
+from calcora.match.match import SymbolicPatternMatcher
+from calcora.utils import is_const_like, partial_eval
+from calcora.core.ops import Const, Add, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
+
+if TYPE_CHECKING:
+  from calcora.core.expression import Expr
 
 def generate_random_expression(depth: int, exponents: bool = False) -> Expr:
   if depth == 1:

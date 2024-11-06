@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from typing import Callable, Dict, List, Optional, TYPE_CHECKING
 
-import calcora as c
 from calcora.globals import BaseOps
-from calcora.ops import Add, AnyOp, Complex, Const, Pow, Log, Mul, Neg
+from calcora.core.ops import Add, AnyOp, Complex, Const, Pow, Log, Mul, Neg
 from calcora.utils import is_op_type, is_const_like, reconstruct_op
-from calcora.utils import ConstLike, MatchedConstLike, MatchedSymbol, NamedAny
+
+ConstLike = lambda name: AnyOp(name=name, assert_const_like=True)
+MatchedConstLike = lambda name: AnyOp(name=name, match=True, assert_const_like=True)
+NamedAny = lambda name: AnyOp(name=name)
+MatchedSymbol = lambda name: AnyOp(name=name, match=True)
 
 if TYPE_CHECKING:
-  from calcora.expression import Expr
+  from calcora.core.expression import Expr
 
 class Pattern:
   def __init__(self, pattern: Expr, replacement: Callable[..., Expr]) -> None:

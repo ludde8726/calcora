@@ -1,5 +1,4 @@
 from enum import Enum, auto
-import os
 
 from mpmath import mp
 

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import Type, TYPE_CHECKING, TypeGuard, TypeVar
 
-import calcora as c
 from calcora.globals import BaseOps
+from calcora.core.number import Number
 
 if TYPE_CHECKING:
-  from calcora.expression import Expr
+  from calcora.core.expression import Expr
+  from calcora.core.ops import Var
   T = TypeVar('T', bound=Expr)
 
 def is_op_type(op: Expr, op_type: Type[T]) -> TypeGuard[T]: return op.fxn == BaseOps(op_type.__name__)
@@ -23,14 +24,9 @@ def partial_eval(op: Expr) -> Expr:
   if op.fxn != BaseOps.Const and op.fxn != BaseOps.Var:
     new_args = [partial_eval(arg) for arg in op.args]
     op = reconstruct_op(op, *new_args)
-  if is_const_like(op): return c.Number(op.eval())
+  if is_const_like(op): return Number(op.eval())
   return op
 
-def diff(op: Expr, var: c.Var, degree: int = 1):
+def diff(op: Expr, var: Var, degree: int = 1):
   for _ in range(degree): op = op.differentiate(var)
   return op
-
-ConstLike = lambda name: c.AnyOp(name=name, assert_const_like=True)
-MatchedConstLike = lambda name: c.AnyOp(name=name, match=True, assert_const_like=True)
-NamedAny = lambda name: c.AnyOp(name=name)
-MatchedSymbol = lambda name: c.AnyOp(name=name, match=True)
