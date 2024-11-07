@@ -14,6 +14,7 @@ class Printer():
   @staticmethod
   def _print_classes(expression: Expr) -> str:
     if expression.fxn == BaseOps.Const: return f'Const({expression.x})' # type: ignore
+    if expression.fxn == BaseOps.Constant: return f'Constant({expression.name})' # type: ignore
     elif expression.fxn == BaseOps.Var: return f'Var({expression.name})' # type: ignore
     elif expression.fxn == BaseOps.AnyOp: return f'Any({expression.name}, match={expression.match}, const={expression.assert_const_like})' # type: ignore
     args = ', '.join([Printer._print_classes(arg) for arg in expression.args])
