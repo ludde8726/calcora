@@ -36,7 +36,6 @@ class Expr:
   def add(self, x: Union[NumberLike, Expr]) -> Expr:
     x = Expr.const_cast(x)
     return FunctionRegistry.get('Add')(self, x)
-
   def sub(self, x: Union[NumberLike, Expr]) -> Expr: 
     x = Expr.const_cast(x)
     return FunctionRegistry.get('Sub')(self, x)
@@ -46,7 +45,7 @@ class Expr:
   def div(self, x: Union[NumberLike, Expr]) -> Expr:
     x = Expr.const_cast(x)
     return FunctionRegistry.get('Div')(self, x)
-  def neg(self) -> Expr: return FunctionRegistry.get('Mul')(self)
+  def neg(self) -> Expr: return FunctionRegistry.get('Neg')(self)
   def pow(self, x: Union[NumberLike, Expr]) -> Expr: 
     x = Expr.const_cast(x)
     return FunctionRegistry.get('Pow')(self, x)
@@ -62,9 +61,15 @@ class Expr:
   def __mul__(self, x: Union[NumberLike, Expr]) -> Expr: return self.mul(x)
   def __truediv__(self, x: Union[NumberLike, Expr]) -> Expr: return self.div(x)
   def __pow__(self, x: Union[NumberLike, Expr]) -> Expr: return self.pow(x)
-  __radd__ = __add__
-  __rmul__ = __mul__
+
+  def __radd__(self, x: Union[NumberLike, Expr]) -> Expr:
+    x = Expr.const_cast(x)
+    return FunctionRegistry.get('Add')(x, self)
   
+  def __rmul__(self, x: Union[NumberLike, Expr]) -> Expr:
+    x = Expr.const_cast(x)
+    return FunctionRegistry.get('Mul')(x, self)
+
   def __rsub__(self, x: Union[NumberLike, Expr]) -> Expr:
     x = Expr.const_cast(x)
     return FunctionRegistry.get('Sub')(x, self)

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import random
-from typing import TYPE_CHECKING
 import unittest
 
 from calcora.core.ops import Complex, Const, Neg
@@ -9,7 +7,7 @@ from calcora.core.number import Number
 
 from mpmath import mpc, mpf
 
-class TestPatternMatcher(unittest.TestCase):
+class TestNumberCreation(unittest.TestCase):
   def test_complex_from_string(self):
     self.assertEqual(Number('4+9j'), Complex(Const(4), Const(9)))
     self.assertEqual(Number('4 + 9j'), Complex(Const(4), Const(9)))
