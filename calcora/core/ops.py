@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 from calcora.core.expression import Expr
-from calcora.core.registry import FunctionRegistry
+from calcora.core.registry import FunctionRegistry, ConstantRegistry
 from calcora.types import NumberLike, CalcoraNumber, RealNumberLike
 
 from mpmath import mpf, mpc, log
+
+if TYPE_CHECKING:
+  from mpmath.ctx_mp_python import _constant
 
 class Var(Expr):
   def __init__(self, name: str) -> None:
@@ -34,11 +38,18 @@ class Const(Expr):
     self.priority = 999
   
   def eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x
-  
   def differentiate(self, var: Var) -> Expr: return Const(0)
+  def _print_repr(self) -> str: return f'{self.x}'
+  
+class Constant(Expr):
+  def __init__(self, x: _constant, name: str) -> None: 
+    self.x = x
+    self.name = name
+    super().__init__(x, name)
 
-  def _print_repr(self) -> str:
-    return f'{self.x}'
+  def eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x()
+  def differentiate(self, var: Var) -> Expr: return Const(0)
+  def _print_repr(self) -> str: return self.name
 
 class Complex(Expr):
   def __init__(self, real: Expr, imag: Expr) -> None:
@@ -157,18 +168,18 @@ class Pow(Expr):
     if self.y.priority < self.priority or isinstance(self.y, Pow): y = f'({y})'
     return f'{x}^{y}'
   
-class Div:
+class Div(Expr):
   def __new__(cls, x: Expr, y: Expr) -> Expr:
     if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
     return Mul(x, Pow(y, Neg(Const(1))))
   
-class Sub:
+class Sub(Expr):
   def __new__(cls, x: Expr, y: Expr) -> Expr:
     return Add(x, Neg(y))
   
-class Ln:
+class Ln(Expr):
   def __new__(cls, x: Expr) -> Expr:
-    return Log(x, Const(math.e))
+    return Log(x, ConstantRegistry.get('e'))
 
 class AnyOp(Expr):
   def __init__(self, match: bool = False, name: str="x", assert_const_like=False) -> None:
@@ -186,6 +197,7 @@ class AnyOp(Expr):
 
 FunctionRegistry.register(Var)
 FunctionRegistry.register(Const)
+FunctionRegistry.register(Constant)
 FunctionRegistry.register(Complex)
 FunctionRegistry.register(Add)
 FunctionRegistry.register(Neg)

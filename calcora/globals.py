@@ -14,6 +14,7 @@ class BaseOps(Enum):
   
   # Special ops
   Const = auto()
+  Constant = auto()
   Complex = auto()
   Var = auto()
 

@@ -6,7 +6,8 @@ import unittest
 
 from calcora.globals import pc
 from calcora.match.match import SymbolicPatternMatcher
-from calcora.utils import is_const_like, partial_eval
+from calcora.match.partial_eval import partial_eval
+from calcora.utils import is_const_like
 from calcora.core.ops import Const, Add, Div, Pow, Ln, Log, Mul, Neg, Sub, Var
 
 if TYPE_CHECKING:

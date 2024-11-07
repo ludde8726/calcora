@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from calcora.types import NumberLike, mpf, mpc
 
 if TYPE_CHECKING:
-  from .expression import Expr
+  from calcora.core.expression import Expr
 
 class Number:
   def __new__(cls, x: NumberLike) -> Expr:

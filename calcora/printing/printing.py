@@ -5,8 +5,7 @@ from typing import TYPE_CHECKING
 
 from calcora.globals import pc, PrintOptions, BaseOps
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
-from calcora.utils import partial_eval
-from calcora.core.registry import FunctionRegistry
+from calcora.core.registry import FunctionRegistry, ConstantRegistry
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
@@ -28,6 +27,7 @@ class Printer():
   def _print(expression: Expr) -> str:
     if pc.simplify:
       from calcora.match.match import SymbolicPatternMatcher
+      from calcora.match.partial_eval import partial_eval
       while True:
         old_expression = expression
         expression = SymbolicPatternMatcher.match(expression)
@@ -42,10 +42,12 @@ class Printer():
       Const = FunctionRegistry.get('Const')
       Pow = FunctionRegistry.get('Pow')
 
+      E = ConstantRegistry.get('e')
+
       RewriteOpsPatternMatcher = PatternMatcher([
         Pattern(Add(NamedAny('x'), Neg(NamedAny('y'))), lambda x,y: PrintableSub(x, y)), # type: ignore
         Pattern(Mul(NamedAny('x'), Pow(NamedAny('y'), Neg(Const(1)))), lambda x,y: PrintableDiv(x, y)), # type: ignore
-        Pattern(Log(NamedAny('x'), Const(math.e)), lambda x: PrintableLn(x)), # type: ignore
+        Pattern(Log(NamedAny('x'), E), lambda x: PrintableLn(x)), # type: ignore
       ])
       expression = RewriteOpsPatternMatcher.match(expression)
     if pc.print_type == PrintOptions.Class: return Printer._print_classes(expression)
