@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Type, TYPE_CHECKING, TypeGuard, TypeVar
+from typing import Type, TypeGuard, TypeVar
+from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps
 

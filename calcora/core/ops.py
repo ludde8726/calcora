@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
+
+from calcora.types import CalcoraNumber, RealNumberLike
 
 from calcora.core.expression import Expr
 from calcora.core.registry import FunctionRegistry, ConstantRegistry
-from calcora.types import NumberLike, CalcoraNumber, RealNumberLike
 
 from mpmath import mpf, mpc, log
 
@@ -46,6 +46,7 @@ class Constant(Expr):
     self.x = x
     self.name = name
     super().__init__(x, name)
+    self.priority = 999
 
   def eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x()
   def differentiate(self, var: Var) -> Expr: return Const(0)

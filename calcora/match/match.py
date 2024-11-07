@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import List, Optional, TYPE_CHECKING
 
-from calcora.core.ops import Add, AnyOp, Complex, Const, Pow, Log, Mul, Neg
 from calcora.match.partial_eval import partial_eval
-
 from calcora.match.pattern import Pattern, MatchedConstLike, MatchedSymbol, ConstLike, NamedAny
+
+from calcora.core.ops import Add, AnyOp, Complex, Const, Pow, Log, Mul, Neg
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr

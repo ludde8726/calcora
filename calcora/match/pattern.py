@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, TYPE_CHECKING, Tuple
+from typing import Callable, Dict, Tuple
+from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps
+from calcora.utils import is_const_like, is_op_type, reconstruct_op
+
 from calcora.core.ops import AnyOp
-from calcora.utils import is_op_type, reconstruct_op, is_const_like
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr

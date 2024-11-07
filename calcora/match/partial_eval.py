@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from calcora.match.pattern import Pattern
-from calcora.core.ops import Add, Neg, Mul, Pow, Log, Const, Div, Sub, Ln
-from calcora.core.constants import E
-from calcora.match.pattern import NamedAny
 from calcora.globals import BaseOps
 from calcora.utils import has_constant, is_const_like
+
+from calcora.match.pattern import NamedAny
+from calcora.match.pattern import Pattern
+
+from calcora.core.constants import E
 from calcora.core.number import Number
+from calcora.core.ops import Add, Const, Div, Neg, Mul, Pow, Log, Sub, Ln
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr

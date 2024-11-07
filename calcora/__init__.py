@@ -1,7 +1,7 @@
 import calcora.core.ops
 import calcora.core.constants
 
-from calcora.core.registry import FunctionRegistry, ConstantRegistry
+from calcora.core.registry import ConstantRegistry, FunctionRegistry
 
 Var = FunctionRegistry.get('Var')
 Const = FunctionRegistry.get('Const')

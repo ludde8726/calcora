@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
-from calcora.globals import pc, PrintOptions, BaseOps
+from calcora.globals import BaseOps, PrintOptions
+from calcora.globals import pc
+
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
-from calcora.core.registry import FunctionRegistry, ConstantRegistry
+
+from calcora.core.registry import ConstantRegistry, FunctionRegistry
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr

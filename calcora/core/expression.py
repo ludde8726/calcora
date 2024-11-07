@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from typing import Tuple, Union, TYPE_CHECKING
+from typing import Tuple, Union
+from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps
-from calcora.printing.printing import Printer
 from calcora.types import CalcoraNumber, NumberLike
-from calcora.core.registry import FunctionRegistry
-from calcora.core.number import Number
 
-from mpmath import mpf, mpc
+from calcora.core.number import Number
+from calcora.core.registry import FunctionRegistry
+
+from calcora.printing.printing import Printer
+
+from mpmath import mpc, mpf
 
 if TYPE_CHECKING:
   from calcora.core.ops import Var
