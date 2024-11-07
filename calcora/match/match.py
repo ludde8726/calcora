@@ -14,10 +14,10 @@ class PatternMatcher:
   def __init__(self, patterns: Optional[List[Pattern]] = None) -> None:
     self.patterns = patterns if patterns else list()
   
-  def add_rules(self, patterns: List[Pattern]):
+  def add_rules(self, patterns: List[Pattern]) -> None:
     self.patterns.extend(patterns)
   
-  def match(self, expression: Expr):
+  def match(self, expression: Expr) -> Expr:
     simplified_expr: Expr = expression
     for pattern in self.patterns:
       simplified_expr = pattern.match(simplified_expr)

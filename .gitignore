@@ -4,7 +4,7 @@ __pycache__/
 
 .env
 .venv
-.vscode
+.mypy_cache/
 
 examples/
 calcora/untracked/

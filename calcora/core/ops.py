@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from calcora.types import CalcoraNumber, RealNumberLike
 
 from calcora.core.expression import Expr
-from calcora.core.registry import FunctionRegistry, ConstantRegistry
+from calcora.core.registry import ConstantRegistry, FunctionRegistry
 
 from mpmath import mpf, mpc, log
 
@@ -170,16 +170,16 @@ class Pow(Expr):
     return f'{x}^{y}'
   
 class Div(Expr):
-  def __new__(cls, x: Expr, y: Expr) -> Expr:
+  def __new__(cls, x: Expr, y: Expr) -> Expr: # type: ignore
     if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
     return Mul(x, Pow(y, Neg(Const(1))))
   
 class Sub(Expr):
-  def __new__(cls, x: Expr, y: Expr) -> Expr:
+  def __new__(cls, x: Expr, y: Expr) -> Expr: # type: ignore
     return Add(x, Neg(y))
   
 class Ln(Expr):
-  def __new__(cls, x: Expr) -> Expr:
+  def __new__(cls, x: Expr) -> Expr: # type: ignore
     return Log(x, ConstantRegistry.get('e'))
 
 class AnyOp(Expr):

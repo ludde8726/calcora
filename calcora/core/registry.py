@@ -15,7 +15,7 @@ class FunctionRegistry:
     cls._registry[fxn.__name__] = fxn
   
   @classmethod
-  def get(cls, name: str) -> Type:
+  def get(cls, name: str) -> Type[Expr]:
     if name in cls._registry: return cls._registry[name]
     raise KeyError(f"No function with name '{name}' registered")
   

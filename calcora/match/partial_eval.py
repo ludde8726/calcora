@@ -10,7 +10,7 @@ from calcora.match.pattern import Pattern
 
 from calcora.core.constants import E
 from calcora.core.number import Number
-from calcora.core.ops import Add, Const, Div, Neg, Mul, Pow, Log, Sub, Ln
+from calcora.core.ops import Add, Const, Div, Ln, Log, Mul, Neg, Pow, Sub
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
