@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import permutations
 from typing import Callable, Dict, Tuple
 from typing import TYPE_CHECKING
 
@@ -32,16 +33,20 @@ class Pattern:
     
     if is_op_type(subpattern, AnyOp):
       if subpattern.assert_const_like and not is_const_like(op): return False
-      if subpattern.match and subpattern.name in self._binding:
-        return self._binding[subpattern.name] == op
+      if subpattern.match and subpattern.name in self._binding: return self._binding[subpattern.name] == op
       self._binding[subpattern.name] = op
       return True
   
     if op.fxn == subpattern.fxn and len(op.args) == len(subpattern.args):
       if op.fxn == BaseOps.Const or op.fxn == BaseOps.Constant: return op.args == subpattern.args
+      if subpattern.commutative and subpattern.args:
+        _temp_bind = self._binding.copy()
+        for perm in permutations(subpattern.args):
+          self._binding = _temp_bind.copy()
+          if all(self._match(op_arg, sub_arg) for op_arg, sub_arg in zip(op.args, perm)): return True
+        return False  
       if subpattern.args:
         return all(self._match(op_arg, sub_arg) for op_arg, sub_arg in zip(op.args, subpattern.args))
-      
     return False
   
   @staticmethod

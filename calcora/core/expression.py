@@ -17,11 +17,12 @@ if TYPE_CHECKING:
   from calcora.core.ops import Var
 
 class Expr:
-  def __init__(self, *args) -> None:
+  def __init__(self, *args, commutative: bool =False) -> None:
     self.args: Tuple[Expr, ...] = args
     assert self.__class__.__name__ in [op.value for op in BaseOps], f"Invalid op type {type(self.__class__.__name__)}"
     self.fxn: BaseOps = BaseOps(self.__class__.__name__)
     self.priority : int = 0 # higher equals higher priority, ex multiplication before addition, etc.
+    self.commutative = commutative
 
   def __eq__(self, other):
     return isinstance(other, Expr) and self.fxn == other.fxn and self.args == other.args

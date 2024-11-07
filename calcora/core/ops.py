@@ -72,7 +72,7 @@ class Add(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
     self.x = x
     self.y = y
-    super().__init__(x, y)
+    super().__init__(x, y, commutative=True)
     self.priority = 1
 
   def eval(self, **kwargs: Expr) -> CalcoraNumber:
@@ -109,7 +109,7 @@ class Mul(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
     self.x = x
     self.y = y
-    super().__init__(x, y)
+    super().__init__(x, y, commutative=True)
     self.priority = 2
 
   def eval(self, **kwargs: Expr) -> CalcoraNumber:
@@ -194,7 +194,8 @@ class AnyOp(Expr):
     return 0
   
   def _print_repr(self) -> str:
-    return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
+    # return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
+    return self.name
 
 FunctionRegistry.register(Var)
 FunctionRegistry.register(Const)
