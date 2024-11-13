@@ -23,10 +23,6 @@ class Printer():
     return f'{expression.__class__.__name__}({args})'
 
   @staticmethod
-  def _print_latex(expression: Expr) -> str:
-    raise NotImplementedError('Latex printing has not yet been implemented, try setting calcora.globals.Settings.Printing to either calcora.globals.PrintOptions.Class or calcora.globals.PrintOptions.Regular')
-
-  @staticmethod
   def _print(expression: Expr) -> str:
     if pc.simplify:
       from calcora.match.match import SymbolicPatternMatcher
@@ -54,5 +50,5 @@ class Printer():
       ])
       expression = RewriteOpsPatternMatcher.match(expression)
     if pc.print_type == PrintOptions.Class: return Printer._print_classes(expression)
-    elif pc.print_type == PrintOptions.Latex: return Printer._print_latex(expression)
+    elif pc.print_type == PrintOptions.Latex: return expression._print_latex()
     else: return expression._print_repr()

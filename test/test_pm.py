@@ -3,34 +3,28 @@ from __future__ import annotations
 import unittest
 import random
 
+import os
 from typing import TYPE_CHECKING
 
 from calcora.core.ops import Add, Complex, Const, Div, Log, Mul, Neg, Pow, Sub, Var
+from calcora.globals import ec
 from calcora.match.match import SymbolicPatternMatcher
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
 
 x = Var('x')
+ec.precision = int(os.getenv("PREC", 16))
 
-def generate_random_expression(depth: int, exponents: bool = False) -> Expr:
-  if depth == 1:
-    return Const(random.uniform(1, 10))
+def generate_random_expression(depth: int) -> Expr:
+  if depth == 1: return Const(random.uniform(1, 10))
   else:
-    operations = [Add, Sub, Mul, Div, Neg, Pow]
-    # if exponents: operations.append(Pow)
-    operation = random.choice(operations)
+    operation = random.choice([Add, Sub, Mul, Div, Neg])
+    left_expr = generate_random_expression(depth - 1)
     if operation in [Add, Sub, Mul, Div]:
-      left_expr = generate_random_expression(depth - 1, exponents=exponents)
-      right_expr = generate_random_expression(depth - 1, exponents=exponents)
+      right_expr = generate_random_expression(depth - 1)
       return operation(left_expr, right_expr)
-    # elif operation == Pow:
-    #   base = generate_random_expression(depth - 1, exponents=exponents)
-    #   exponent = Const(random.randint(1, 10))
-    #   return Pow(base, exponent)
-    else:
-      expr = generate_random_expression(depth - 1, exponents=exponents)
-      return Neg(expr)
+    else: return Neg(left_expr)
 
 class TestSymbolicPatternMatcher(unittest.TestCase):
   def setUp(self) -> None:

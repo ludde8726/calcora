@@ -88,5 +88,6 @@ class Expr:
 
   def _print_repr(self) -> str: raise NotImplementedError()
 
-  def __repr__(self) -> str: 
-    return Printer._print(self) 
+  def _print_latex(self) -> str: raise NotImplementedError()
+
+  def __repr__(self) -> str: return Printer._print(self) 

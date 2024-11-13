@@ -22,6 +22,7 @@ class PrintableOp:
     return type(self) is type(other) and self.args == other.args
   
   def _print_repr(self) -> str: raise NotImplementedError()
+  def _print_latex(self) -> str: raise NotImplementedError()
 
 class PrintableSub(PrintableOp): 
   def __init__(self, x: Expr, y: Expr) -> None:
@@ -36,7 +37,13 @@ class PrintableSub(PrintableOp):
     if self.x.priority < self.priority and not isinstance(self.x, Neg()): x = f'({x})'
     if self.y.priority < self.priority or isinstance(self.y, PrintableSub) or isinstance(self.y, Neg()) or isinstance(self.y, Add()): y = f'({y})'
     return f'{x} - {y}'
-
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    y = self.y._print_latex()
+    if self.x.priority < self.priority and not isinstance(self.x, Neg()): x = f'\\left({x}\\right)'
+    if self.y.priority < self.priority or isinstance(self.y, PrintableSub) or isinstance(self.y, Neg()) or isinstance(self.y, Add()): y = f'\\left({y}\\right)'
+    return f'{x} - {y}'
 
 class PrintableDiv(PrintableOp):
   def __init__(self, x: Expr, y: Expr) -> None:
@@ -52,6 +59,11 @@ class PrintableDiv(PrintableOp):
     if self.y.priority < self.priority or isinstance(self.y, PrintableDiv) or isinstance(self.y, Mul()): y = f'({y})'
     return f'{x}/{y}'
   
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    y = self.y._print_latex()
+    return f'\\frac{{{x}}}{{{y}}}'
+  
 class PrintableLn(PrintableOp):
   def __init__(self, x: Expr) -> None:
     self.x = x
@@ -60,4 +72,8 @@ class PrintableLn(PrintableOp):
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
-    return f'Ln({x})'
+    return f'Ln\\left({x}\\right)'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    return f'\\ln\\left({x}\\right)'

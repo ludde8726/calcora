@@ -25,8 +25,8 @@ class Var(Expr):
     if self.name in kwargs: return kwargs[self.name].eval()
     raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
   
-  def _print_repr(self) -> str:
-    return f'{self.name}'
+  def _print_repr(self) -> str: return f'{self.name}'
+  def _print_latex(self) -> str: return f'{self.name}'
   
 class Const(Expr):
   def __init__(self, x: RealNumberLike) -> None:
@@ -40,6 +40,7 @@ class Const(Expr):
   def eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return f'{self.x}'
+  def _print_latex(self) -> str: return f'{self.x}'
   
 class Constant(Expr):
   def __init__(self, x: _constant, name: str) -> None: 
@@ -51,6 +52,7 @@ class Constant(Expr):
   def eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x()
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return self.name
+  def _print_latex(self) -> str: return f'\\{self.name}' # Note: Works only for pi...
 
 class Complex(Expr):
   def __init__(self, real: Expr, imag: Expr) -> None:
@@ -67,6 +69,9 @@ class Complex(Expr):
   
   def _print_repr(self) -> str:
     return f'{self.real._print_repr()} + {self.imag._print_repr()}i' if not isinstance(self.imag, Neg) else f'{self.real._print_repr()} - {self.imag.x._print_repr()}i'
+  
+  def _print_latex(self) -> str: 
+    return f'{self.real._print_latex()} + {self.imag._print_latex()}i' if not isinstance(self.imag, Neg) else f'{self.real._print_latex()} - {self.imag.x._print_latex()}i'
 
 class Add(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
@@ -84,8 +89,15 @@ class Add(Expr):
   def _print_repr(self) -> str:
     x = self.x._print_repr()
     y = self.y._print_repr()
-    if self.x.priority < self.priority: x = f'({self.x})'
-    if self.y.priority < self.priority: y = f'({self.y})'
+    if self.x.priority < self.priority: x = f'({x})'
+    if self.y.priority < self.priority: y = f'({y})'
+    return f'{x} + {y}'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    y = self.y._print_latex()
+    if self.x.priority < self.priority: x = f'\\left({x}\\right)'
+    if self.y.priority < self.priority: y = f'\\left({y}\\right)'
     return f'{x} + {y}'
 
 class Neg(Expr):
@@ -102,7 +114,12 @@ class Neg(Expr):
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
-    if not (isinstance(self.x, Const) or isinstance(self.x, Var)): x = f'({x})'
+    if not (isinstance(self.x, (Const, Var, Constant))): x = f'\\left({x}\\right)'
+    return f'-{x}'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    if not (isinstance(self.x, (Const, Var, Constant))): x = f'\\left({x}\\right)'
     return f'-{x}'
   
 class Mul(Expr):
@@ -124,6 +141,13 @@ class Mul(Expr):
     if self.x.priority < self.priority: x = f'({x})'
     if self.y.priority < self.priority: y = f'({y})'
     return f'{x}*{y}'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    y = self.y._print_latex()
+    if self.x.priority < self.priority: x = f'\\left({x}\\right)'
+    if self.y.priority < self.priority: y = f'\\left({y}\\right)'
+    return f'{x} \\cdot {y}'
 
 class Log(Expr):
   def __init__(self, x: Expr, base: Expr = Const(10)) -> None:
@@ -147,6 +171,11 @@ class Log(Expr):
     x = self.x._print_repr()
     base = self.base._print_repr()
     return f'Log_{base}({x})'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    base = self.base._print_latex()
+    return f'\\log_{{{base}}}\\left({x}\\right)'
 
 class Pow(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:
@@ -168,6 +197,13 @@ class Pow(Expr):
     if self.x.priority < self.priority or isinstance(self.x, Pow): x = f'({x})'
     if self.y.priority < self.priority or isinstance(self.y, Pow): y = f'({y})'
     return f'{x}^{y}'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    y = self.y._print_latex()
+    if self.x.priority < self.priority or isinstance(self.x, Pow): x = f'\\left({x}\\right)'
+    if (self.y.priority < self.priority or isinstance(self.y, Pow)) and not isinstance(self.y, Neg): y = f'\\left({y}\\right)'
+    return f'{{{x}}}^{{{y}}}'
   
 class Div(Expr):
   def __new__(cls, x: Expr, y: Expr) -> Expr: # type: ignore
@@ -194,8 +230,10 @@ class AnyOp(Expr):
     return 0
   
   def _print_repr(self) -> str:
-    # return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
-    return self.name
+    return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
+  
+  def _print_latex(self) -> str:
+    return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
 
 FunctionRegistry.register(Var)
 FunctionRegistry.register(Const)
