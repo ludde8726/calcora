@@ -33,7 +33,10 @@ class Pattern:
     
     if is_op_type(subpattern, AnyOp):
       if subpattern.assert_const_like and not is_const_like(op): return False
-      if subpattern.match and subpattern.name in self._binding: return self._binding[subpattern.name] == op
+      if subpattern.match and subpattern.name in self._binding: 
+        if self._binding[subpattern.name].commutative: 
+          return any(self._binding[subpattern.name].args == op_args for op_args in permutations(op.args))
+        return self._binding[subpattern.name] == op
       self._binding[subpattern.name] = op
       return True
   
@@ -50,22 +53,9 @@ class Pattern:
     return False
   
   @staticmethod
-  def match_static(op: Expr, subpattern: Expr, binding: Dict[str, Expr] = {}) -> Tuple[bool, Dict[str, Expr]]:
-    _binding = binding
-    if not (len(op.args) == len(subpattern.args)) and not subpattern.fxn == BaseOps.AnyOp: return (False, _binding)
-    if is_op_type(subpattern, AnyOp):
-      if subpattern.assert_const_like and not is_const_like(op): return (False, _binding)
-      if subpattern.match and subpattern.name in _binding:
-        return (_binding[subpattern.name] == op, _binding)
-      _binding[subpattern.name] = op
-      return (True, _binding)
-    
-    if op.fxn == subpattern.fxn and len(op.args) == len(subpattern.args):
-      if op.fxn == BaseOps.Const or op.fxn == BaseOps.Constant: return (op.args == subpattern.args, _binding)
-      if subpattern.args:
-        return (all(Pattern.match_static(op_arg, sub_arg, _binding)[0] for op_arg, sub_arg in zip(op.args, subpattern.args)), _binding)
-      
-    return (False, _binding)
+  def match_static(op: Expr, subpattern: Expr) -> Tuple[bool, Dict[str, Expr]]: # Note: This is an ugly hack
+    p = Pattern(subpattern, lambda x: x)
+    return (p._match(op, subpattern), p._binding)
 
 ConstLike = lambda name: AnyOp(name=name, assert_const_like=True)
 MatchedConstLike = lambda name: AnyOp(name=name, match=True, assert_const_like=True)

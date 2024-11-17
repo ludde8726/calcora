@@ -17,4 +17,4 @@ Sub = FunctionRegistry.get('Sub')
 Ln = FunctionRegistry.get('Ln')
 
 E = ConstantRegistry.get('e')
-PI = ConstantRegistry.get('e')
+PI = ConstantRegistry.get('π')

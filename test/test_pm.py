@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import unittest
-import random
-
 import os
+import random
+import unittest
+
 from typing import TYPE_CHECKING
 
 from calcora.core.ops import Add, Complex, Const, Div, Log, Mul, Neg, Pow, Sub, Var

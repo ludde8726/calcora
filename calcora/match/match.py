@@ -52,6 +52,7 @@ SymbolicPatternMatcher = PatternMatcher([
   Pattern(Mul(MatchedSymbol('x'), MatchedSymbol('x')), lambda x: Pow(x, Const(2))), # x * x = x^2
   
   Pattern(Add(MatchedSymbol('x'), Mul(ConstLike('y'), MatchedSymbol('x'))), lambda x,y: Mul(partial_eval(Add(y, Const(1))), x)), # x + yx = (y+1)x where y is a constant
+
   Pattern(Add(Mul(ConstLike('y'), MatchedSymbol('x')), Mul(ConstLike('z'), MatchedSymbol('x'))), lambda x,y,z: Mul(partial_eval(Add(y, z)), x)), # yx + zx = (y+z)x where y and z are constants
 
   Pattern(Mul(MatchedSymbol('x'), Pow(MatchedSymbol('x'), ConstLike('y'))), lambda x,y: Pow(x, partial_eval(Add(y, Const(1))))),    # x * x^y = x^(y+1) where y is a constant

@@ -114,7 +114,7 @@ class Neg(Expr):
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
-    if not (isinstance(self.x, (Const, Var, Constant))): x = f'\\left({x}\\right)'
+    if not (isinstance(self.x, (Const, Var, Constant))): x = f'({x})'
     return f'-{x}'
   
   def _print_latex(self) -> str:
