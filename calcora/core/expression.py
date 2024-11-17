@@ -54,6 +54,10 @@ class Expr:
     return FunctionRegistry.get('Log')(self, x)
   def ln(self) -> Expr: 
     return FunctionRegistry.get('Ln')(self)
+  def sin(self) -> Expr:
+    return FunctionRegistry.get('Sin')(self)
+  def cos(self) -> Expr:
+    return FunctionRegistry.get('Cos')(self)
   
   def __add__(self, x: Union[NumberLike, Expr]) -> Expr: return self.add(x)
   def __neg__(self) -> Expr: return self.neg()
@@ -84,7 +88,8 @@ class Expr:
   
   def differentiate(self, var: Var) -> Expr: raise NotImplementedError()
 
-  def eval(self, **kwargs: Expr) -> CalcoraNumber: raise NotImplementedError()
+  def eval(self, **kwargs: Expr) -> Expr: return Number(self._eval(**kwargs))
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: raise NotImplementedError()
 
   def _print_repr(self) -> str: raise NotImplementedError()
 

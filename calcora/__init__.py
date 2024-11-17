@@ -11,6 +11,8 @@ Neg = FunctionRegistry.get('Neg')
 Mul = FunctionRegistry.get('Mul')
 Log = FunctionRegistry.get('Log')
 Pow = FunctionRegistry.get('Pow')
+Pow = FunctionRegistry.get('Sin')
+Pow = FunctionRegistry.get('Cos')
 
 Div = FunctionRegistry.get('Div')
 Sub = FunctionRegistry.get('Sub')

@@ -9,7 +9,6 @@ from calcora.match.pattern import NamedAny
 from calcora.match.pattern import Pattern
 
 from calcora.core.constants import E
-from calcora.core.number import Number
 from calcora.core.ops import Add, Const, Div, Ln, Log, Mul, Neg, Pow, Sub
 
 if TYPE_CHECKING:
@@ -36,5 +35,5 @@ def partial_eval(x: Expr) -> Expr:
     else: 
       new_args = [partial_eval(arg) for arg in x.args]
       x = x.__class__(*new_args)
-  if is_const_like(x) and not has_constant(x): return Number(x.eval())
+  if is_const_like(x) and not has_constant(x): return x.eval()
   return x

@@ -135,7 +135,7 @@ class TestSymbolicPatternMatcher(unittest.TestCase):
     for _ in range(500):
       expr = generate_random_expression(random.randint(1, 7))
       matched_expr = self.pm.match(expr)
-      self.assertEqual(matched_expr.eval(), expr.eval())
+      self.assertEqual(matched_expr._eval(), expr._eval())
 
 if __name__ == '__main__':
   unittest.main()

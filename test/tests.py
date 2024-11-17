@@ -196,7 +196,7 @@ class TestPatternMatcher(unittest.TestCase):
     for _ in range(50):
       expr = generate_random_expression(random.randint(1, 12), exponents=False)
       simplified_expr = self.pm.match(expr)
-      self.assertEqual(expr.eval(), simplified_expr.eval())
+      self.assertEqual(expr._eval(), simplified_expr._eval())
 
 class TestOpClasses(unittest.TestCase):
   def test_equals_operator(self):
@@ -208,11 +208,11 @@ class TestOpClasses(unittest.TestCase):
 
   def test_div_operation(self):
     self.assertEqual(Div(Const(10), Const(2)), Mul(Const(10), Pow(Const(2), Neg(Const(1)))))
-    self.assertEqual(Div(Const(10), Const(2)).eval(), 5)
+    self.assertEqual(Div(Const(10), Const(2))._eval(), 5)
 
   def test_sub_operation(self):
     self.assertEqual(Sub(Const(10), Const(2)), Add(Const(10), Neg(Const(2))))
-    self.assertEqual(Sub(Const(10), Const(2)).eval(), 8)
+    self.assertEqual(Sub(Const(10), Const(2))._eval(), 8)
 
   def test_magic_method_add(self):
     self.assertEqual(Var('x') + 3, Add(Var('x'), Const(3)))
@@ -262,13 +262,13 @@ class TestOpClasses(unittest.TestCase):
     for _ in range(200):
       pc.rewrite = True
       expr = generate_random_expression(random.randint(1, 7), exponents=False)
-      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=1e-5)
+      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr._eval(), delta=1e-5)
 
   def test_random_expressions_without_exponents_without_rewrite(self):
     for _ in range(200):
       pc.rewrite = False
       expr = generate_random_expression(random.randint(1, 7), exponents=False)
-      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr.eval(), delta=1e-5)
+      self.assertAlmostEqual(eval(repr(expr).replace('^', '**')), expr._eval(), delta=1e-5)
 
 if __name__ == '__main__':
   unittest.main()

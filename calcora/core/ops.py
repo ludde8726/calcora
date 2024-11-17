@@ -7,7 +7,7 @@ from calcora.types import CalcoraNumber, RealNumberLike
 from calcora.core.expression import Expr
 from calcora.core.registry import ConstantRegistry, FunctionRegistry
 
-from mpmath import mpf, mpc, log
+from mpmath import mpf, mpc, log, sin, cos
 
 if TYPE_CHECKING:
   from mpmath.ctx_mp_python import _constant
@@ -21,8 +21,8 @@ class Var(Expr):
   def differentiate(self, var: Var) -> Expr: 
     return Const(1) if self == var else Const(0)
   
-  def eval(self, **kwargs: Expr) -> CalcoraNumber:
-    if self.name in kwargs: return kwargs[self.name].eval()
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    if self.name in kwargs: return kwargs[self.name]._eval()
     raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
   
   def _print_repr(self) -> str: return f'{self.name}'
@@ -37,7 +37,7 @@ class Const(Expr):
     super().__init__(self.x)
     self.priority = 999
   
-  def eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return f'{self.x}'
   def _print_latex(self) -> str: return f'{self.x}'
@@ -49,7 +49,7 @@ class Constant(Expr):
     super().__init__(x, name)
     self.priority = 999
 
-  def eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x()
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x()
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return self.name
   def _print_latex(self) -> str: return f'\\{self.name}' # Note: Works only for pi...
@@ -60,8 +60,8 @@ class Complex(Expr):
     self.imag = imag
     super().__init__(real, imag)
   
-  def eval(self, **kwargs: Expr) -> CalcoraNumber: 
-    return mpc(real=self.real.eval(**kwargs), imag=self.imag.eval(**kwargs))
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
+    return mpc(real=self.real._eval(**kwargs), imag=self.imag._eval(**kwargs))
   
   def differentiate(self, var: Var) -> Expr:
     if self.imag != 0: raise ValueError('Cannot differentiate imaginary numbers (for now)')
@@ -80,8 +80,8 @@ class Add(Expr):
     super().__init__(x, y, commutative=True)
     self.priority = 1
 
-  def eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return self.x.eval(**kwargs) + self.y.eval(**kwargs)
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return self.x._eval(**kwargs) + self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
     return Add(self.x.differentiate(var), self.y.differentiate(var))
@@ -106,8 +106,8 @@ class Neg(Expr):
     super().__init__(x)
     self.priority = 0
 
-  def eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return -self.x.eval(**kwargs)
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return -self.x._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
     return Neg(self.x.differentiate(var))
@@ -129,8 +129,8 @@ class Mul(Expr):
     super().__init__(x, y, commutative=True)
     self.priority = 2
 
-  def eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return self.x.eval(**kwargs) * self.y.eval(**kwargs)
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return self.x._eval(**kwargs) * self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
     return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
@@ -156,8 +156,8 @@ class Log(Expr):
     super().__init__(x, base)
     self.priority = 4
   
-  def eval(self, **kwargs: Expr) -> CalcoraNumber: 
-    return log(self.x.eval(**kwargs), self.base.eval(**kwargs))
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
+    return log(self.x._eval(**kwargs), self.base._eval(**kwargs))
   
   def differentiate(self, var: Var) -> Expr:
     return Div(
@@ -184,8 +184,8 @@ class Pow(Expr):
     super().__init__(x, y)
     self.priority = 3
 
-  def eval(self, **kwargs) -> CalcoraNumber:
-    return self.x.eval(**kwargs) ** self.y.eval(**kwargs)
+  def _eval(self, **kwargs) -> CalcoraNumber:
+    return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
     return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
@@ -204,7 +204,47 @@ class Pow(Expr):
     if self.x.priority < self.priority or isinstance(self.x, Pow): x = f'\\left({x}\\right)'
     if (self.y.priority < self.priority or isinstance(self.y, Pow)) and not isinstance(self.y, Neg): y = f'\\left({y}\\right)'
     return f'{{{x}}}^{{{y}}}'
+
+class Sin(Expr):
+  def __init__(self, x: Expr) -> None:
+    self.x = x
+    super().__init__(x)
+    self.priority = 4
   
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return sin(self.x._eval(**kwargs))
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Cos(self.x) * self.x.differentiate(var)
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    return f'sin({x})'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    return f'\\sin\\left({x}\\right)'
+  
+class Cos(Expr):
+  def __init__(self, x: Expr) -> None:
+    self.x = x
+    super().__init__(x)
+    self.priority = 4
+  
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return cos(self.x._eval(**kwargs))
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Neg(Sin(self.x)) * self.x.differentiate(var)
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    return f'cos({x})'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    return f'\\cos\\left({x}\\right)'
+
 class Div(Expr):
   def __new__(cls, x: Expr, y: Expr) -> Expr: # type: ignore
     if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
@@ -225,7 +265,7 @@ class AnyOp(Expr):
     self.assert_const_like = assert_const_like
     super().__init__()
 
-  def eval(self, **kwargs) -> CalcoraNumber:
+  def _eval(self, **kwargs) -> CalcoraNumber:
     print('Warning! AnyOp cannot be evaluated, returning 0')
     return 0
   
@@ -244,6 +284,8 @@ FunctionRegistry.register(Neg)
 FunctionRegistry.register(Mul)
 FunctionRegistry.register(Log)
 FunctionRegistry.register(Pow)
+FunctionRegistry.register(Sin)
+FunctionRegistry.register(Cos)
 FunctionRegistry.register(AnyOp)
 
 FunctionRegistry.register(Div)
@@ -254,4 +296,4 @@ if __name__ == "__main__":
   x = Var('x')
   expr = x / 2 + 4
   print(expr)
-  print(Const(expr.eval(x=Const(1))))
+  print(Const(expr._eval(x=Const(1))))
