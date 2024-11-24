@@ -4,7 +4,7 @@ from itertools import permutations
 from typing import Callable, Dict, Tuple
 from typing import TYPE_CHECKING
 
-from calcora.globals import BaseOps
+from calcora.globals import BaseOps, GlobalCounter
 from calcora.utils import is_const_like, is_op_type, reconstruct_op
 
 from calcora.core.ops import AnyOp
@@ -25,6 +25,7 @@ class Pattern:
     op = reconstruct_op(op, *new_args)
     if op.fxn == self.pattern.fxn and len(op.args) == len(self.pattern.args):
       if self._match(op, self.pattern):
+        GlobalCounter.matches += 1
         return self.replacement(**self._binding)
     return reconstruct_op(op, *new_args)
   
@@ -55,7 +56,9 @@ class Pattern:
   @staticmethod
   def match_static(op: Expr, subpattern: Expr) -> Tuple[bool, Dict[str, Expr]]: # Note: This is an ugly hack
     p = Pattern(subpattern, lambda x: x)
-    return (p._match(op, subpattern), p._binding)
+    matched = p._match(op, subpattern)
+    if matched: GlobalCounter.matches += 1
+    return (matched, p._binding)
 
 ConstLike = lambda name: AnyOp(name=name, assert_const_like=True)
 MatchedConstLike = lambda name: AnyOp(name=name, match=True, assert_const_like=True)

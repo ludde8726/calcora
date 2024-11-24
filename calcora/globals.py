@@ -29,6 +29,13 @@ class BaseOps(Enum):
   AnyOp = auto()
   NoOp = auto()
 
+class GlobalCounter:
+  num_ops: int = 0
+  matches: int = 0
+
+  @staticmethod
+  def decrement_ops() -> None: GlobalCounter.num_ops -= 1
+
 class _EvalContext:
   def __init__(self):
     self._precision = 16

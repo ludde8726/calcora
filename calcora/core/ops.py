@@ -150,7 +150,7 @@ class Mul(Expr):
     return f'{x} \\cdot {y}'
 
 class Log(Expr):
-  def __init__(self, x: Expr, base: Expr = Const(10)) -> None:
+  def __init__(self, x: Expr, base: Expr) -> None:
     self.x = x
     self.base = base
     super().__init__(x, base)
@@ -170,7 +170,7 @@ class Log(Expr):
   def _print_repr(self) -> str:
     x = self.x._print_repr()
     base = self.base._print_repr()
-    return f'Log_{base}({x})'
+    return f'log_{base}({x})'
   
   def _print_latex(self) -> str:
     x = self.x._print_latex()

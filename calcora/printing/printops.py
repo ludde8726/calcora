@@ -72,7 +72,7 @@ class PrintableLn(PrintableOp):
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
-    return f'Ln\\left({x}\\right)'
+    return f'ln({x})'
   
   def _print_latex(self) -> str:
     x = self.x._print_latex()
