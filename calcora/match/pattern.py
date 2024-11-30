@@ -5,7 +5,8 @@ from typing import Callable, Dict, Tuple
 from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps, GlobalCounter
-from calcora.utils import is_const_like, is_op_type, reconstruct_op
+from calcora.globals import dc
+from calcora.utils import is_const_like, is_op_type, reconstruct_op, dprint
 
 from calcora.core.ops import AnyOp
 
@@ -26,7 +27,9 @@ class Pattern:
     if op.fxn == self.pattern.fxn and len(op.args) == len(self.pattern.args):
       if self._match(op, self.pattern):
         GlobalCounter.matches += 1
-        return self.replacement(**self._binding)
+        new_op = self.replacement(**self._binding)
+        dprint(f'$ -> $', 2, 'magenta', op, new_op)
+        return new_op
     return reconstruct_op(op, *new_args)
   
   def _match(self, op: Expr, subpattern: Expr) -> bool:

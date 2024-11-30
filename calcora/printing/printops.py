@@ -23,6 +23,7 @@ class PrintableOp:
   
   def _print_repr(self) -> str: raise NotImplementedError()
   def _print_latex(self) -> str: raise NotImplementedError()
+  def __repr__(self) -> str: return self._print_repr()
 
 class PrintableSub(PrintableOp): 
   def __init__(self, x: Expr, y: Expr) -> None:

@@ -4,7 +4,7 @@ from typing import Tuple, Union
 from typing import TYPE_CHECKING
 import weakref
 
-from calcora.globals import BaseOps, GlobalCounter
+from calcora.globals import BaseOps, GlobalCounter, dc
 from calcora.types import CalcoraNumber, NumberLike
 
 from calcora.core.number import Number
@@ -12,13 +12,15 @@ from calcora.core.registry import FunctionRegistry
 
 from calcora.printing.printing import Printer
 
+from calcora.utils import dprint
+
 from mpmath import mpc, mpf
 
 if TYPE_CHECKING:
   from calcora.core.ops import Var
 
 class Expr:
-  _finalizer_refs = set()
+  _finalizer_refs = set() # Static sets of all finalizers to make sure they don't get garbage collected before instance is deleted.
 
   def __init__(self, *args, commutative: bool =False) -> None:
     self.args: Tuple[Expr, ...] = args
@@ -29,6 +31,7 @@ class Expr:
     GlobalCounter.num_ops += 1
     finalizer = weakref.finalize(self, GlobalCounter.decrement_ops)
     Expr._finalizer_refs.add(finalizer)
+    dprint(f'Op \'{self.fxn.name}\' created with args $', 4, 'yellow', self.args)
 
   def __eq__(self, other):
     return isinstance(other, Expr) and self.fxn == other.fxn and self.args == other.args
@@ -94,7 +97,10 @@ class Expr:
   
   def differentiate(self, var: Var) -> Expr: raise NotImplementedError()
 
-  def eval(self, **kwargs: Expr) -> Expr: return Number(self._eval(**kwargs))
+  def eval(self, **kwargs: Expr) -> Expr:
+    result = Number(self._eval(**kwargs))
+    dprint(f'Evaluating $ -> $', 1, 'green', self, result)
+    return result
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: raise NotImplementedError()
 
   def _print_repr(self) -> str: raise NotImplementedError()
