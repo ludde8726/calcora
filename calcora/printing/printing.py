@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+from typing import Callable, Dict
 from typing import TYPE_CHECKING
+
+from itertools import permutations
 
 from calcora.globals import BaseOps, PrintOptions
 from calcora.globals import pc
 
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
 
+from calcora.core.lazy import Neg, Mul, Add, Log, Const, Pow
 from calcora.core.registry import ConstantRegistry, FunctionRegistry
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
 
-class Printer():
+class Printer:
   @staticmethod
   def _print_classes(expression: Expr) -> str:
     if expression.fxn == BaseOps.Const: return f'Const({expression.x})' # type: ignore
@@ -25,21 +29,10 @@ class Printer():
   @staticmethod
   def _print(expression: Expr) -> str:
     if pc.simplify:
-      from calcora.match.match import SymbolicPatternMatcher
-      from calcora.match.partial_eval import partial_eval
-      while True:
-        old_expression = expression
-        expression = SymbolicPatternMatcher.match(expression)
-        expression = partial_eval(expression)
-        if expression == old_expression: break
+      from calcora.match.simplify import simplify
+      expression = simplify(expression)
     if pc.rewrite: 
       from calcora.match.match import Pattern, PatternMatcher, NamedAny
-      Neg = FunctionRegistry.get('Neg')
-      Mul = FunctionRegistry.get('Mul')
-      Add = FunctionRegistry.get('Add')
-      Log = FunctionRegistry.get('Log')
-      Const = FunctionRegistry.get('Const')
-      Pow = FunctionRegistry.get('Pow')
 
       E = ConstantRegistry.get('e')
 

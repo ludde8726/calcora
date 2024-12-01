@@ -7,6 +7,8 @@ from calcora.match.pattern import Pattern, MatchedConstLike, MatchedSymbol, Cons
 
 from calcora.core.ops import Add, AnyOp, Complex, Const, Pow, Log, Mul, Neg
 
+from calcora.utils import dprint
+
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
 
@@ -17,11 +19,12 @@ class PatternMatcher:
   def add_rules(self, patterns: List[Pattern]) -> None:
     self.patterns.extend(patterns)
   
-  def match(self, expression: Expr) -> Expr:
+  def match(self, expression: Expr, depth: int = 0) -> Expr:
     simplified_expr: Expr = expression
     for pattern in self.patterns:
       simplified_expr = pattern.match(simplified_expr)
-    if simplified_expr != expression: simplified_expr = self.match(simplified_expr)
+    if simplified_expr != expression: simplified_expr = self.match(simplified_expr, depth=depth+1)
+    if depth == 0: dprint(f'$ -> $', 2, 'blue', expression, simplified_expr)
     return simplified_expr
   
 SymbolicPatternMatcher = PatternMatcher([

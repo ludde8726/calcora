@@ -28,7 +28,7 @@ class Pattern:
       if self._match(op, self.pattern):
         GlobalCounter.matches += 1
         new_op = self.replacement(**self._binding)
-        dprint(f'$ -> $', 2, 'magenta', op, new_op)
+        if not dc.in_debug: dprint(f'$ -> $', 3, 'magenta', op, new_op)
         return new_op
     return reconstruct_op(op, *new_args)
   

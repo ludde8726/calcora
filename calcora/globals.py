@@ -72,9 +72,11 @@ class _PrintingContext:
   def simplify(self, value: bool): 
     if not isinstance(value, bool): raise TypeError(f"Invalid type {type(bool)} for simplify value, must be of type bool")
     self._simplify = value
-    
+
 class _DebugContext:
-  def __init__(self, default: int = 0): self._debug_level = default
+  def __init__(self, default: int = 0): 
+    self._debug_level = default
+    self.in_debug = False
   @property
   def level(self) -> int: return self._debug_level
   @level.setter

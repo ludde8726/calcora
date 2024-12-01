@@ -80,7 +80,6 @@ def diff(op: Expr, var: Var, degree: int = 1) -> Expr:
   for _ in range(degree): op = op.differentiate(var)
   return op
 
-
 def colored(string: str, color: Union[str, Iterable[str]]):
   colors = [color] if isinstance(color, str) else color
   invalid_colors = [c for c in colors if not hasattr(TerminalColors, c)]
@@ -88,14 +87,16 @@ def colored(string: str, color: Union[str, Iterable[str]]):
   color_codes = ''.join(getattr(TerminalColors, c) for c in colors)
   return f"{color_codes}{string}{TerminalColors.reset}"
 
-def dprint(message: str, min_level: int, color: Union[str, Iterable[str]], *args) -> None:
-  if dc < min_level: return
-  r, s, t = pc.rewrite, pc.simplify, pc.print_type
-  pc.rewrite = False
-  pc.simplify = False
+def dprint(message: str, min_level: int, color: Union[str, Iterable[str]], *args, rewrite: bool = True) -> None:
+  if not (dc >= min_level) or dc.in_debug: return
+  t, s, r = pc.print_type, pc.simplify, pc.rewrite
   pc.print_type = PrintOptions.Regular
+  pc.simplify = False
+  pc.rewrite = rewrite
+  dc.in_debug = True
   for arg in args: message = message.replace("$", str(arg), 1)
   print(colored(message, color))
-  pc.rewrite = r
+  dc.in_debug = False
+  pc.print_type = t
   pc.simplify = s
-  pc.print_type = PrintOptions.Regular
+  pc.rewrite = r
