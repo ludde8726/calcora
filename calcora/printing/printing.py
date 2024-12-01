@@ -10,12 +10,12 @@ from calcora.globals import pc
 
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
 
-from calcora.core.lazy import Neg, Mul, Add, Log, Const, Pow
+from calcora.core.lazy import LazyNeg, LazyMul, LazyAdd, LazyLog, LazyConst, LazyPow
 from calcora.core.registry import ConstantRegistry, FunctionRegistry
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
-
+  
 class Printer:
   @staticmethod
   def _print_classes(expression: Expr) -> str:
@@ -37,9 +37,9 @@ class Printer:
       E = ConstantRegistry.get('e')
 
       RewriteOpsPatternMatcher = PatternMatcher([
-        Pattern(Add(NamedAny('x'), Neg(NamedAny('y'))), lambda x,y: PrintableSub(x, y)), # type: ignore
-        Pattern(Mul(NamedAny('x'), Pow(NamedAny('y'), Neg(Const(1)))), lambda x,y: PrintableDiv(x, y)), # type: ignore
-        Pattern(Log(NamedAny('x'), E), lambda x: PrintableLn(x)), # type: ignore
+        Pattern(LazyAdd(NamedAny('x'), LazyNeg(NamedAny('y'))), lambda x,y: PrintableSub(x, y)), # type: ignore
+        Pattern(LazyMul(NamedAny('x'), LazyPow(NamedAny('y'), LazyNeg(LazyConst(1)))), lambda x,y: PrintableDiv(x, y)), # type: ignore
+        Pattern(LazyLog(NamedAny('x'), E), lambda x: PrintableLn(x)), # type: ignore
       ])
       expression = RewriteOpsPatternMatcher.match(expression)
     if pc.print_type == PrintOptions.Class: return Printer._print_classes(expression)

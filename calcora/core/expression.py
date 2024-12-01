@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class Expr:
   _finalizer_refs = set() # Static sets of all finalizers to make sure they don't get garbage collected before instance is deleted.
 
-  def __init__(self, *args, commutative: bool =False) -> None:
+  def __init__(self, *args, commutative: bool = False, **kwargs) -> None:
     self.args: Tuple[Expr, ...] = args
     assert self.__class__.__name__ in [op.value for op in BaseOps], f"Invalid op type {type(self.__class__.__name__)}"
     self.fxn: BaseOps = BaseOps(self.__class__.__name__)

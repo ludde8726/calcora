@@ -7,7 +7,7 @@ from calcora.globals import BaseOps, dc, pc, PrintOptions
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
-  from calcora.core.ops import Var
+  from calcora.core.ops import AnyOp, Var
   T = TypeVar('T', bound=Expr)
 
 class TerminalColors:
@@ -62,6 +62,7 @@ class TerminalColors:
   hidden = '\033[8m'
 
 def is_op_type(op: Expr, op_type: Type[T]) -> TypeGuard[T]: return op.fxn == BaseOps(op_type.__name__)
+def is_any_op(op: Expr) -> TypeGuard[AnyOp]: return op.fxn == BaseOps.AnyOp
 
 def has_constant(op: Expr) -> bool:
   if op.fxn == BaseOps.Constant: return True

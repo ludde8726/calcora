@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps, GlobalCounter
 from calcora.globals import dc
-from calcora.utils import is_const_like, is_op_type, reconstruct_op, dprint
+from calcora.utils import is_any_op, is_const_like, reconstruct_op, dprint
 
-from calcora.core.ops import AnyOp
+from calcora.core.registry import FunctionRegistry
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
@@ -35,7 +35,7 @@ class Pattern:
   def _match(self, op: Expr, subpattern: Expr) -> bool:
     if not (len(op.args) == len(subpattern.args)) and not subpattern.fxn == BaseOps.AnyOp: return False
     
-    if is_op_type(subpattern, AnyOp):
+    if is_any_op(subpattern):
       if subpattern.assert_const_like and not is_const_like(op): return False
       if subpattern.match and subpattern.name in self._binding: 
         if self._binding[subpattern.name].commutative: 
@@ -63,7 +63,7 @@ class Pattern:
     if matched: GlobalCounter.matches += 1
     return (matched, p._binding)
 
-ConstLike = lambda name: AnyOp(name=name, assert_const_like=True)
-MatchedConstLike = lambda name: AnyOp(name=name, match=True, assert_const_like=True)
-NamedAny = lambda name: AnyOp(name=name)
-MatchedSymbol = lambda name: AnyOp(name=name, match=True)
+ConstLike = lambda name: FunctionRegistry.get('AnyOp')(name=name, assert_const_like=True)
+MatchedConstLike = lambda name: FunctionRegistry.get('AnyOp')(name=name, match=True, assert_const_like=True)
+NamedAny = lambda name: FunctionRegistry.get('AnyOp')(name=name)
+MatchedSymbol = lambda name: FunctionRegistry.get('AnyOp')(name=name, match=True)
