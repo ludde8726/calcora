@@ -19,6 +19,9 @@ class Var(Expr):
     self.name = name
     super().__init__(name)
     self.priority = 999
+
+  @staticmethod
+  def _init(name: str) -> None: pass
   
   def differentiate(self, var: Var) -> Expr: 
     return Const(1) if self == var else Const(0)
@@ -39,6 +42,9 @@ class Const(Expr):
     super().__init__(self.x)
     self.priority = 999
   
+  @staticmethod
+  def _init(x: RealNumberLike) -> None: pass
+  
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return f'{self.x}'
@@ -50,6 +56,9 @@ class Constant(Expr):
     self.name = name
     super().__init__(x, name)
     self.priority = 999
+  
+  @staticmethod
+  def _init(x: _constant, name: str) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x()
   def differentiate(self, var: Var) -> Expr: return Const(0)
@@ -66,6 +75,9 @@ class Complex(Expr):  # TODO: Add support for polar and exponential representati
     self.real = real
     self.imag = imag
     super().__init__(real, imag)
+  
+  @staticmethod
+  def _init(real: Expr, imag: Expr, form: ComplexForm = ComplexForm.Rectangular) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
     return mpc(real=self.real._eval(**kwargs), imag=self.imag._eval(**kwargs))
@@ -105,6 +117,9 @@ class Add(Expr):
     super().__init__(x, y, commutative=True)
     self.priority = 1
 
+  @staticmethod
+  def _init(x: Expr, y: Expr) -> None: pass
+
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) + self.y._eval(**kwargs)
   
@@ -131,6 +146,9 @@ class Neg(Expr):
     super().__init__(x)
     self.priority = 0
 
+  @staticmethod
+  def _init(x: Expr) -> None: pass
+
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return -self.x._eval(**kwargs)
   
@@ -153,6 +171,9 @@ class Mul(Expr):
     self.y = y
     super().__init__(x, y, commutative=True)
     self.priority = 2
+  
+  @staticmethod
+  def _init(x: Expr, y: Expr) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) * self.y._eval(**kwargs)
@@ -181,6 +202,9 @@ class Log(Expr):
     super().__init__(x, base)
     self.priority = 4
   
+  @staticmethod
+  def _init(x: Expr, base: Expr) -> None: pass
+  
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
     return log(self.x._eval(**kwargs), self.base._eval(**kwargs))
   
@@ -208,6 +232,9 @@ class Pow(Expr):
     self.y = y
     super().__init__(x, y)
     self.priority = 3
+  
+  @staticmethod
+  def _init(x: Expr, y: Expr) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
@@ -236,6 +263,9 @@ class Sin(Expr):
     super().__init__(x)
     self.priority = 4
   
+  @staticmethod
+  def _init(x: Expr) -> None: pass
+  
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return sin(self.x._eval(**kwargs))
   
@@ -256,6 +286,9 @@ class Cos(Expr):
     super().__init__(x)
     self.priority = 4
   
+  @staticmethod
+  def _init(x: Expr) -> None: pass
+  
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return cos(self.x._eval(**kwargs))
   
@@ -275,13 +308,22 @@ class Div(Expr):
     if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
     return Mul(x, Pow(y, Neg(Const(1))))
   
+  @staticmethod
+  def _init(x: Expr, y: Expr) -> None: pass
+  
 class Sub(Expr):
   def __new__(cls, x: Expr, y: Expr) -> Expr: # type: ignore
     return Add(x, Neg(y))
   
+  @staticmethod
+  def _init(x: Expr, y: Expr) -> None: pass
+  
 class Ln(Expr):
   def __new__(cls, x: Expr) -> Expr: # type: ignore
     return Log(x, ConstantRegistry.get('e'))
+  
+  @staticmethod
+  def _init(x: Expr) -> None: pass
 
 class AnyOp(Expr):
   def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False) -> None:
@@ -289,6 +331,9 @@ class AnyOp(Expr):
     self.name = name
     self.assert_const_like = assert_const_like
     super().__init__()
+  
+  @staticmethod
+  def _init(match: bool = False, name: str = "x", assert_const_like: bool = False) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     print('Warning! AnyOp cannot be evaluated, returning 0')
