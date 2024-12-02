@@ -19,12 +19,12 @@ class PatternMatcher:
   def add_rules(self, patterns: List[Pattern]) -> None:
     self.patterns.extend(patterns)
   
-  def match(self, expression: Expr, depth: int = 0) -> Expr:
+  def match(self, expression: Expr, depth: int = 0, print_debug: bool = True) -> Expr:
     simplified_expr: Expr = expression
     for pattern in self.patterns:
       simplified_expr = pattern.match(simplified_expr)
-    if simplified_expr != expression: simplified_expr = self.match(simplified_expr, depth=depth+1)
-    if depth == 0: dprint(f'$ -> $', 2, 'blue', expression, simplified_expr)
+    if matched := (simplified_expr != expression): simplified_expr = self.match(simplified_expr, depth=depth+1, print_debug=print_debug)
+    if depth == 0 and matched and print_debug: dprint(f'$ -> $', 2, 'blue', expression, simplified_expr)
     return simplified_expr
   
 SymbolicPatternMatcher = PatternMatcher([

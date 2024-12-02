@@ -7,22 +7,25 @@ from itertools import permutations
 
 from calcora.globals import BaseOps, PrintOptions
 from calcora.globals import pc
+from calcora.utils import is_op_type
 
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
 
 from calcora.core.lazy import LazyNeg, LazyMul, LazyAdd, LazyLog, LazyConst, LazyPow
 from calcora.core.registry import ConstantRegistry, FunctionRegistry
+from calcora.core.stringops import *
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
-  
+  from calcora.core.ops import Const, Constant, Var, AnyOp
+
 class Printer:
   @staticmethod
   def _print_classes(expression: Expr) -> str:
-    if expression.fxn == BaseOps.Const: return f'Const({expression.x})' # type: ignore
-    if expression.fxn == BaseOps.Constant: return f'Constant({expression.name})' # type: ignore
-    elif expression.fxn == BaseOps.Var: return f'Var({expression.name})' # type: ignore
-    elif expression.fxn == BaseOps.AnyOp: return f'Any({expression.name}, match={expression.match}, const={expression.assert_const_like})' # type: ignore
+    if is_op_type(expression, Const): return f'Const({expression.x})'
+    elif is_op_type(expression, Constant): return f'Constant({expression.name})'
+    elif is_op_type(expression, Var): return f'Var({expression.name})'
+    elif is_op_type(expression, AnyOp): return f'Any({expression.name}, match={expression.match}, const={expression.assert_const_like})'
     args = ', '.join([Printer._print_classes(arg) for arg in expression.args])
     return f'{expression.__class__.__name__}({args})'
 
@@ -41,7 +44,7 @@ class Printer:
         Pattern(LazyMul(NamedAny('x'), LazyPow(NamedAny('y'), LazyNeg(LazyConst(1)))), lambda x,y: PrintableDiv(x, y)), # type: ignore
         Pattern(LazyLog(NamedAny('x'), E), lambda x: PrintableLn(x)), # type: ignore
       ])
-      expression = RewriteOpsPatternMatcher.match(expression)
+      expression = RewriteOpsPatternMatcher.match(expression, print_debug=False)
     if pc.print_type == PrintOptions.Class: return Printer._print_classes(expression)
     elif pc.print_type == PrintOptions.Latex: return expression._print_latex()
     else: return expression._print_repr()

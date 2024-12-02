@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Iterable, Type, TypeGuard, TypeVar, Union
 from typing import TYPE_CHECKING
 
-from calcora.globals import BaseOps, dc, pc, PrintOptions
+from calcora.globals import BaseOps, PrintOptions
+from calcora.globals import dc, pc
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
@@ -61,7 +62,9 @@ class TerminalColors:
   reverse = '\033[7m'
   hidden = '\033[8m'
 
-def is_op_type(op: Expr, op_type: Type[T]) -> TypeGuard[T]: return op.fxn == BaseOps(op_type.__name__)
+def is_op_type(op: Expr, op_type: Type[T]) -> TypeGuard[T]: 
+  if not isinstance(op_type, str): raise TypeError("This function should only be called with string ops and is mainly used for type checkers!")
+  return op.fxn == BaseOps(op_type)
 def is_any_op(op: Expr) -> TypeGuard[AnyOp]: return op.fxn == BaseOps.AnyOp
 
 def has_constant(op: Expr) -> bool:
@@ -77,10 +80,6 @@ def is_const_like(op: Expr) -> bool:
 def reconstruct_op(op: Expr, *args) -> Expr:
   return op.__class__(*args)
 
-def diff(op: Expr, var: Var, degree: int = 1) -> Expr:
-  for _ in range(degree): op = op.differentiate(var)
-  return op
-
 def colored(string: str, color: Union[str, Iterable[str]]):
   colors = [color] if isinstance(color, str) else color
   invalid_colors = [c for c in colors if not hasattr(TerminalColors, c)]
@@ -90,14 +89,8 @@ def colored(string: str, color: Union[str, Iterable[str]]):
 
 def dprint(message: str, min_level: int, color: Union[str, Iterable[str]], *args, rewrite: bool = True) -> None:
   if not (dc >= min_level) or dc.in_debug: return
-  t, s, r = pc.print_type, pc.simplify, pc.rewrite
-  pc.print_type = PrintOptions.Regular
-  pc.simplify = False
-  pc.rewrite = rewrite
-  dc.in_debug = True
+  original_settings = (pc.print_type, pc.simplify, pc.rewrite)
+  pc.print_type, pc.simplify, pc.rewrite, dc.in_debug = PrintOptions.Regular, False, rewrite, True
   for arg in args: message = message.replace("$", str(arg), 1)
   print(colored(message, color))
-  dc.in_debug = False
-  pc.print_type = t
-  pc.simplify = s
-  pc.rewrite = r
+  pc.print_type, pc.simplify, pc.rewrite, dc.in_debug = *original_settings, False

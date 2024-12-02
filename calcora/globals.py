@@ -40,14 +40,23 @@ class GlobalCounter:
   def decrement_ops() -> None: GlobalCounter.num_ops -= 1
 
 class _EvalContext:
-  def __init__(self, default: int = 16): self._precision = default
+  def __init__(self, default: int = 16, always_simplify: bool = True): 
+    self._precision = default
+    self._always_simplify = always_simplify
   @property
   def precision(self) -> int: return self._precision
+  @property
+  def always_simplify(self) -> int: return self._precision
   @precision.setter
   def precision(self, value: int):
     if not isinstance(value, int): raise TypeError(f"Invalid type {type(value)} for precision, must be of type int")
     self._precision = value
     mp.dps = self._precision
+  @always_simplify.setter
+  def always_simplify(self, value: bool): 
+    if not isinstance(value, bool): raise TypeError(f"Invalid type {type(value)} for should simplify value, must be of type bool")
+    self._always_simplify = value
+  
 
 class _PrintingContext:
   def __init__(self):
@@ -65,14 +74,14 @@ class _PrintingContext:
   def rewrite(self) -> bool: return self._rewrite
   @rewrite.setter
   def rewrite(self, value: bool): 
-    if not isinstance(value, bool): raise TypeError(f"Invalid type {type(bool)} for rewrite value, must be of type bool")
+    if not isinstance(value, bool): raise TypeError(f"Invalid type {type(value)} for rewrite value, must be of type bool")
     self._rewrite = value
 
   @property
   def simplify(self) -> bool: return self._simplify
   @simplify.setter
   def simplify(self, value: bool): 
-    if not isinstance(value, bool): raise TypeError(f"Invalid type {type(bool)} for simplify value, must be of type bool")
+    if not isinstance(value, bool): raise TypeError(f"Invalid type {type(value)} for simplify value, must be of type bool")
     self._simplify = value
 
 class _DebugContext:
