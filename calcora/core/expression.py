@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Any, Tuple, Union
 from typing import TYPE_CHECKING
 import weakref
 
@@ -20,9 +20,9 @@ if TYPE_CHECKING:
   from calcora.core.ops import Var
 
 class Expr:
-  _finalizer_refs = set() # Static sets of all finalizers to make sure they don't get garbage collected before instance is deleted.
+  _finalizer_refs : set[weakref.finalize] = set() # Static sets of all finalizers to make sure they don't get garbage collected before instance is deleted.
 
-  def __init__(self, *args, commutative: bool = False, **kwargs) -> None:
+  def __init__(self, *args: Any, commutative: bool = False, **kwargs: Any) -> None:
     self.args: Tuple[Expr, ...] = args
     assert self.__class__.__name__ in [op.value for op in BaseOps], f"Invalid op type {type(self.__class__.__name__)}"
     self.fxn: BaseOps = BaseOps(self.__class__.__name__)
@@ -33,7 +33,7 @@ class Expr:
     Expr._finalizer_refs.add(finalizer)
     dprint(f'Op \'{self.fxn.name}\' created with args $', 4, 'yellow', self.args)
 
-  def __eq__(self, other):
+  def __eq__(self, other: object) -> bool:
     return isinstance(other, Expr) and self.fxn == other.fxn and self.args == other.args
   
   @staticmethod
@@ -95,8 +95,8 @@ class Expr:
     x = Expr.const_cast(x)
     return FunctionRegistry.get('Pow')(x, self)
   
-  def __int__(self): return int(self._eval())
-  def __float__(self): return float(self._eval())
+  def __int__(self) -> int: return int(self._eval())
+  def __float__(self) -> float: return float(self._eval())
   
   def differentiate(self, var: Var) -> Expr: raise NotImplementedError()
 

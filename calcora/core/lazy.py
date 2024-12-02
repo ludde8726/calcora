@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Generic, Optional, Type, TypeGuard, TypeVar
+from typing import Any, Callable, Generic, Optional, Type, TypeGuard, TypeVar
 from typing import TYPE_CHECKING
 
 from calcora.core.registry import ConstantRegistry, FunctionRegistry
@@ -22,7 +22,7 @@ class LazyOp(Generic[T]):
 
   def _is_evaluated(self, value: Optional[Type[T]]) -> TypeGuard[Type[T]]: return self._evaluated
 
-  def __call__(self, *args, **kwargs) -> T:
+  def __call__(self, *args: Any, **kwargs: Any) -> T:
     if self._is_evaluated(self._value): return self._value(*args)
     self._value = self._fxn()
     self._evaluated = True

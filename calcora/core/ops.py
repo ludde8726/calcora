@@ -209,7 +209,7 @@ class Pow(Expr):
     super().__init__(x, y)
     self.priority = 3
 
-  def _eval(self, **kwargs) -> CalcoraNumber:
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
@@ -284,13 +284,13 @@ class Ln(Expr):
     return Log(x, ConstantRegistry.get('e'))
 
 class AnyOp(Expr):
-  def __init__(self, match: bool = False, name: str="x", assert_const_like=False) -> None:
+  def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False) -> None:
     self.match = match
     self.name = name
     self.assert_const_like = assert_const_like
     super().__init__()
 
-  def _eval(self, **kwargs) -> CalcoraNumber:
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     print('Warning! AnyOp cannot be evaluated, returning 0')
     return 0
   

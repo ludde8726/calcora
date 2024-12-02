@@ -63,7 +63,7 @@ class Pattern:
     if matched: GlobalCounter.matches += 1
     return (matched, p._binding)
 
-ConstLike = lambda name: FunctionRegistry.get('AnyOp')(name=name, assert_const_like=True)
-MatchedConstLike = lambda name: FunctionRegistry.get('AnyOp')(name=name, match=True, assert_const_like=True)
-NamedAny = lambda name: FunctionRegistry.get('AnyOp')(name=name)
-MatchedSymbol = lambda name: FunctionRegistry.get('AnyOp')(name=name, match=True)
+ConstLike : Callable[[str], Expr] = lambda name: FunctionRegistry.get('AnyOp')(name=name, assert_const_like=True)
+MatchedConstLike : Callable[[str], Expr] = lambda name: FunctionRegistry.get('AnyOp')(name=name, match=True, assert_const_like=True)
+NamedAny : Callable[[str], Expr] = lambda name: FunctionRegistry.get('AnyOp')(name=name)
+MatchedSymbol : Callable[[str], Expr] = lambda name: FunctionRegistry.get('AnyOp')(name=name, match=True)

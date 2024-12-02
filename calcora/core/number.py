@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from calcora.types import NumberLike, mpf, mpc
+from calcora.types import NumberLike
+
+from mpmath import mpc, mpf
 
 if TYPE_CHECKING: from calcora.core.expression import Expr
 

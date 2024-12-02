@@ -1,6 +1,8 @@
 from enum import auto, Enum
 import os
 
+from typing import List
+
 from mpmath import mp
 
 class PrintOptions(Enum):
@@ -10,7 +12,7 @@ class PrintOptions(Enum):
 
 class BaseOps(Enum):
   @staticmethod
-  def _generate_next_value_(name, start, count, last_values):
+  def _generate_next_value_(name: str, start: int, count: int, last_values: List[str]) -> str: 
     return name
   
   # Special ops
@@ -43,44 +45,56 @@ class _EvalContext:
   def __init__(self, default: int = 16, always_simplify: bool = True): 
     self._precision = default
     self._always_simplify = always_simplify
+
   @property
-  def precision(self) -> int: return self._precision
-  @property
-  def always_simplify(self) -> int: return self._precision
+  def precision(self) -> int: 
+    return self._precision
+  
   @precision.setter
-  def precision(self, value: int):
+  def precision(self, value: int) -> None:
     if not isinstance(value, int): raise TypeError(f"Invalid type {type(value)} for precision, must be of type int")
     self._precision = value
     mp.dps = self._precision
+
+  @property
+  def always_simplify(self) -> int: 
+    return self._precision
+  
   @always_simplify.setter
-  def always_simplify(self, value: bool): 
+  def always_simplify(self, value: bool) -> None: 
     if not isinstance(value, bool): raise TypeError(f"Invalid type {type(value)} for should simplify value, must be of type bool")
     self._always_simplify = value
   
-
 class _PrintingContext:
-  def __init__(self):
+  def __init__(self) -> None:
     self._print_type = PrintOptions.Regular
     self._rewrite = True
     self._simplify = False
+
   @property
-  def print_type(self) -> PrintOptions: return self._print_type
+  def print_type(self) -> PrintOptions: 
+    return self._print_type
+  
   @print_type.setter
-  def print_type(self, value: PrintOptions):
+  def print_type(self, value: PrintOptions) -> None:
     if not isinstance(value, PrintOptions): raise TypeError(f"Invalid type {type(value)} for print type, must be of type PrintOptions")
     self._print_type = value
 
   @property
-  def rewrite(self) -> bool: return self._rewrite
+  def rewrite(self) -> bool: 
+    return self._rewrite
+  
   @rewrite.setter
-  def rewrite(self, value: bool): 
+  def rewrite(self, value: bool) -> None: 
     if not isinstance(value, bool): raise TypeError(f"Invalid type {type(value)} for rewrite value, must be of type bool")
     self._rewrite = value
 
   @property
-  def simplify(self) -> bool: return self._simplify
+  def simplify(self) -> bool: 
+    return self._simplify
+  
   @simplify.setter
-  def simplify(self, value: bool): 
+  def simplify(self, value: bool) -> None: 
     if not isinstance(value, bool): raise TypeError(f"Invalid type {type(value)} for simplify value, must be of type bool")
     self._simplify = value
 
@@ -88,13 +102,17 @@ class _DebugContext:
   def __init__(self, default: int = 0): 
     self._debug_level = default
     self.in_debug = False
+
   @property
-  def level(self) -> int: return self._debug_level
+  def level(self) -> int: 
+    return self._debug_level
+  
   @level.setter
-  def level(self, value: int):
+  def level(self, value: int) -> None:
     if not isinstance(value, int): raise TypeError(f"Invalid type {type(value)} for debug level, must be of type int")
     self._debug_level = value
-  def __eq__(self, other) -> bool: return self._debug_level == other
+
+  def __eq__(self, other: object) -> bool: return self._debug_level == other
   def __gt__(self, other: int) -> bool: return self._debug_level > other
   def __lt__(self, other: int) -> bool: return self._debug_level < other
   def __ge__(self, other: int) -> bool: return self._debug_level >= other

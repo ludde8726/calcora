@@ -35,7 +35,9 @@ class Printer:
       from calcora.match.simplify import simplify
       expression = simplify(expression)
     if pc.rewrite: 
-      from calcora.match.match import Pattern, PatternMatcher, NamedAny
+      from calcora.match.match import PatternMatcher
+      from calcora.match.pattern import Pattern
+      from calcora.match.pattern import NamedAny
 
       E = ConstantRegistry.get('e')
 

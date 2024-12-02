@@ -49,8 +49,7 @@ SymbolicPatternMatcher = PatternMatcher([
 
   Pattern(Add(MatchedSymbol('x'), Neg(MatchedSymbol('x'))), lambda x: Const(0)), # x - x = 0
 
-  Pattern(Mul(MatchedSymbol('x'), Pow(MatchedSymbol(name='x'), 
-                                                Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
+  Pattern(Mul(MatchedSymbol('x'), Pow(MatchedSymbol('x'), Neg(Const(1)))), lambda x: Const(1)), # x * x^(-1) = x/x = 1
   
   Pattern(Mul(MatchedSymbol('x'), MatchedSymbol('x')), lambda x: Pow(x, Const(2))), # x * x = x^2
   

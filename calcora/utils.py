@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Type, TypeGuard, TypeVar, Union
+from typing import Any, Iterable, Type, TypeGuard, TypeVar, Union
 from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps, PrintOptions
@@ -77,17 +77,17 @@ def is_const_like(op: Expr) -> bool:
   elif op.fxn == BaseOps.Var: return False
   return all(is_const_like(arg) for arg in op.args)
 
-def reconstruct_op(op: Expr, *args) -> Expr:
+def reconstruct_op(op: Expr, *args: Any) -> Expr:
   return op.__class__(*args)
 
-def colored(string: str, color: Union[str, Iterable[str]]):
+def colored(string: str, color: Union[str, Iterable[str]]) -> str:
   colors = [color] if isinstance(color, str) else color
   invalid_colors = [c for c in colors if not hasattr(TerminalColors, c)]
   if invalid_colors: raise ValueError(f"Invalid color(s): {', '.join(invalid_colors)}")
   color_codes = ''.join(getattr(TerminalColors, c) for c in colors)
   return f"{color_codes}{string}{TerminalColors.reset}"
 
-def dprint(message: str, min_level: int, color: Union[str, Iterable[str]], *args, rewrite: bool = True) -> None:
+def dprint(message: str, min_level: int, color: Union[str, Iterable[str]], *args: Any, rewrite: bool = True) -> None:
   if not (dc >= min_level) or dc.in_debug: return
   original_settings = (pc.print_type, pc.simplify, pc.rewrite)
   pc.print_type, pc.simplify, pc.rewrite, dc.in_debug = PrintOptions.Regular, False, rewrite, True

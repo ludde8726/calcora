@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Callable, Type
 from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps
@@ -9,17 +10,17 @@ from calcora.core.registry import FunctionRegistry
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
 
-Neg = lambda: FunctionRegistry.get('Neg')
-Mul = lambda: FunctionRegistry.get('Mul')
-Add = lambda: FunctionRegistry.get('Add')
+Neg : Callable[[], Type[Expr]] = lambda: FunctionRegistry.get('Neg')
+Mul : Callable[[], Type[Expr]] = lambda: FunctionRegistry.get('Mul')
+Add : Callable[[], Type[Expr]] = lambda: FunctionRegistry.get('Add')
 
 class PrintableOp:
   def __init__(self, *args: Expr) -> None:
     self.args = args
     self.fxn = BaseOps.NoOp
 
-  def __eq__(self, other):
-    return type(self) is type(other) and self.args == other.args
+  def __eq__(self, other: object) -> bool:
+    return type(self) is type(other) and self.args == other.args # type: ignore
   
   def _print_repr(self) -> str: raise NotImplementedError()
   def _print_latex(self) -> str: raise NotImplementedError()

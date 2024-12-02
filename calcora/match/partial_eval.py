@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Callable, Dict, Tuple
 from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps
@@ -14,9 +15,9 @@ from calcora.core.ops import Add, Const, Div, Ln, Log, Mul, Neg, Pow, Sub
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
 
-SubOpPattern = lambda x: Pattern.match_static(x, Add(NamedAny('x'), Neg(NamedAny('y'))))
-DivOpPattern = lambda x: Pattern.match_static(x, Mul(NamedAny('x'), Pow(NamedAny('y'), Neg(Const(1)))))
-LnOpPattern = lambda x: Pattern.match_static(x, Log(NamedAny('x'), E))
+SubOpPattern : Callable[[Expr], Tuple[bool, Dict[str, Expr]]] = lambda x: Pattern.match_static(x, Add(NamedAny('x'), Neg(NamedAny('y'))))
+DivOpPattern : Callable[[Expr], Tuple[bool, Dict[str, Expr]]] = lambda x: Pattern.match_static(x, Mul(NamedAny('x'), Pow(NamedAny('y'), Neg(Const(1)))))
+LnOpPattern : Callable[[Expr], Tuple[bool, Dict[str, Expr]]] = lambda x: Pattern.match_static(x, Log(NamedAny('x'), E))
 
 def partial_eval(x: Expr) -> Expr:
   if not (x.fxn == BaseOps.Const or x.fxn == BaseOps.Var or x.fxn == BaseOps.Constant):
