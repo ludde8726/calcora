@@ -7,8 +7,10 @@ from calcora.types import NumberLike, mpf, mpc
 if TYPE_CHECKING: from calcora.core.expression import Expr
 
 def Number(x: NumberLike) -> Expr:
+  from calcora.core.expression import Expr
   from calcora.core.ops import Neg, Const, Complex
-  if isinstance(x, complex):
+  if isinstance(x, Expr): return x
+  elif isinstance(x, complex):
     if x.imag: return Complex(Const(x.real) if x.real >= 0 else Neg(Const(abs(x.real))), Const(x.imag) if x.imag >= 0 else Neg(Const(abs(x.imag))))
     else: return Const(x.real) if x.real >= 0 else Neg(Const(abs(x.real)))
   elif isinstance(x, str):

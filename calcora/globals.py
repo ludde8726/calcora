@@ -25,6 +25,8 @@ class BaseOps(Enum):
   Mul = auto()
   Pow = auto()
   Log = auto()
+  Sin = auto()
+  Cos = auto()
 
   # NoOps
   AnyOp = auto()

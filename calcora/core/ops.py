@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from enum import Enum, auto
+
 from calcora.types import CalcoraNumber, RealNumberLike
 
 from calcora.core.expression import Expr
@@ -33,7 +35,7 @@ class Const(Expr):
     if isinstance(x, (int, float, str)): self.x = mpf(x)
     elif isinstance(x, mpf): self.x = x
     else: raise TypeError("Const must be initialized with an int, float, str, or mpf.")
-    if not (self.x.real >= 0 and self.x.imag == 0): raise ValueError("Const value must be a real, positive value!")
+    # if not (self.x.real >= 0 and self.x.imag == 0): raise ValueError("Const value must be a real, positive value!")
     super().__init__(self.x)
     self.priority = 999
   
@@ -54,8 +56,13 @@ class Constant(Expr):
   def _print_repr(self) -> str: return self.name
   def _print_latex(self) -> str: return f'\\{self.name}' # Note: Works only for pi...
 
-class Complex(Expr):
-  def __init__(self, real: Expr, imag: Expr) -> None:
+class ComplexForm(Enum):
+  Rectangular = auto()
+  Polar = auto()
+  Exponential = auto()
+
+class Complex(Expr):  # TODO: Add support for polar and exponential representation, aswell as fix printing order.
+  def __init__(self, real: Expr, imag: Expr, form: ComplexForm = ComplexForm.Rectangular) -> None:
     self.real = real
     self.imag = imag
     super().__init__(real, imag)
@@ -68,10 +75,28 @@ class Complex(Expr):
     return Const(0)
   
   def _print_repr(self) -> str:
-    return f'{self.real._print_repr()} + {self.imag._print_repr()}i' if not isinstance(self.imag, Neg) else f'{self.real._print_repr()} - {self.imag.x._print_repr()}i'
+    if isinstance(self.imag, Neg):
+      imag = f'{self.imag.x._print_repr()}i'
+      if self.imag == Const(1): imag = '-i'
+      if self.real == Const(0): return f'{imag}'
+      return f'{self.real._print_repr()} - {imag}'
+    else:
+      imag = f'{self.imag._print_repr()}i'
+      if self.imag == Const(1): imag = 'i'
+      if self.real == Const(0): return f'{imag}'
+      return f'{self.real._print_repr()} + {imag}'
   
-  def _print_latex(self) -> str: 
-    return f'{self.real._print_latex()} + {self.imag._print_latex()}i' if not isinstance(self.imag, Neg) else f'{self.real._print_latex()} - {self.imag.x._print_latex()}i'
+  def _print_latex(self) -> str:
+    if isinstance(self.imag, Neg):
+      imag = f'{self.imag.x._print_latex()}i'
+      if self.imag == Const(1): imag = '-i'
+      if self.real == Const(0): return f'{imag}'
+      return f'{self.real._print_latex()} - {imag}'
+    else:
+      imag = f'{self.imag._print_latex()}i'
+      if self.imag == Const(1): imag = 'i'
+      if self.real == Const(0): return f'{imag}'
+      return f'{self.real._print_latex()} + {imag}'
 
 class Add(Expr):
   def __init__(self, x: Expr, y: Expr) -> None:

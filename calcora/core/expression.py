@@ -95,6 +95,9 @@ class Expr:
     x = Expr.const_cast(x)
     return FunctionRegistry.get('Pow')(x, self)
   
+  def __int__(self): return int(self._eval())
+  def __float__(self): return float(self._eval())
+  
   def differentiate(self, var: Var) -> Expr: raise NotImplementedError()
 
   def eval(self, **kwargs: Expr) -> Expr:
