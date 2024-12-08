@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable, Dict, Iterable, Optional
 from typing import TYPE_CHECKING
 
-import math
 from enum import Enum, auto
 
 from calcora.core.stringops import *
 from calcora.utils import is_op_type
+from calcora.types import EvaledNumber
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
@@ -17,63 +17,73 @@ class Backend(Enum):
   PYTHON = auto()
   MPMATH = auto()
 
-class Lamdbdify:
-  def __init__(self, expression: Expr, backend: Backend = Backend.PYTHON, instant_eval: bool = True) -> None:
-    self.expression : Expr = expression
-    self.backend = backend
-    self.instant_eval = instant_eval
-    self._lambda : Optional[Callable] = None
-    if self.instant_eval: self._lambda = self._generate()
-  
-  def _generate(self) -> Callable:
-    lambda_string = self._generate_lambda_string(self.expression)
-    lambda_vars = ",".join(sorted(Lamdbdify._find_vars(self.expression)))
-    print(lambda_string)
-    return_lambda : Callable = eval(f'lambda {lambda_vars}: {lambda_string}')
-    return return_lambda
-  
-  def _generate_lambda_string(self, expression: Expr) -> str:
-    if is_op_type(expression, Var): return f'{expression.name}'
-    elif is_op_type(expression, Const): return f'{expression.x}'
-    elif is_op_type(expression, Constant): return f''
-    elif is_op_type(expression, Complex): 
-      real = self._generate_lambda_string(expression.real)
-      imag = self._generate_lambda_string(expression.imag)
-      return f'{expression.real}+{expression.imag}j'
-    elif is_op_type(expression, Add):
-      x = self._generate_lambda_string(expression.x)
-      y = self._generate_lambda_string(expression.y)
-      return f'({x}+{y})'
-    elif is_op_type(expression, Neg):
-      x = self._generate_lambda_string(expression.x)
-      return f'(-{x})'
-    elif is_op_type(expression, Mul):
-      x = self._generate_lambda_string(expression.x)
-      y = self._generate_lambda_string(expression.y)
-      return f'({x}*{y})'
-    elif is_op_type(expression, Log):
-      x = self._generate_lambda_string(expression.x)
-      base = self._generate_lambda_string(expression.base)
-      return f'math.log({x}, {base})'
-    elif is_op_type(expression, Pow):
-      x = self._generate_lambda_string(expression.x)
-      y = self._generate_lambda_string(expression.y)
-      return f'({x}**{y})'
-    elif is_op_type(expression, Sin): 
-      x = self._generate_lambda_string(expression.x)
-      return f'math.sin({x})'
-    elif is_op_type(expression, Cos):
-      x = self._generate_lambda_string(expression.x)
-      return f'math.cos({x})'
-    else: raise TypeError(f'Invalid op {type(expression)} cannot be lambdified!')
-  
-  @staticmethod
-  def _find_vars(expression: Expr) -> set[str]:
-    found_vars = set()
-    def inner(expression: Expr):
-      if is_op_type(expression, Var): found_vars.add(expression.name)
-      elif not (is_op_type(expression, Const) or is_op_type(expression, Constant)):
-        for arg in expression.args: inner(arg)
-    inner(expression)
-    return found_vars
-    
+def find_expression_vars(expression: Expr) -> set[str]:
+  found_vars = set()
+  def inner(expression: Expr) -> None:
+    if is_op_type(expression, Var): found_vars.add(expression.name)
+    elif not (is_op_type(expression, Const) or is_op_type(expression, Constant)):
+      for arg in expression.args: inner(arg)
+  inner(expression)
+  return found_vars
+
+def generate_lambda_string_wrapper(expression: Expr, function_map: Dict[str, str]) -> str:
+  if is_op_type(expression, Var): return f'{expression.name}'
+  elif is_op_type(expression, Const): return f'{expression.x}'
+  elif is_op_type(expression, Constant): return f''
+  elif is_op_type(expression, Complex): 
+    real = generate_lambda_string_wrapper(expression.real, function_map)
+    imag = generate_lambda_string_wrapper(expression.imag, function_map)
+    return f'{function_map["complex"]}({real}, {imag})'
+  elif is_op_type(expression, Add):
+    x = generate_lambda_string_wrapper(expression.x, function_map)
+    y = generate_lambda_string_wrapper(expression.y, function_map)
+    return f'({x}+{y})'
+  elif is_op_type(expression, Neg):
+    x = generate_lambda_string_wrapper(expression.x, function_map)
+    return f'(-{x})'
+  elif is_op_type(expression, Mul):
+    x = generate_lambda_string_wrapper(expression.x, function_map)
+    y = generate_lambda_string_wrapper(expression.y, function_map)
+    return f'({x}*{y})'
+  elif is_op_type(expression, Log):
+    x = generate_lambda_string_wrapper(expression.x, function_map)
+    base = generate_lambda_string_wrapper(expression.base, function_map)
+    return f'{function_map["log"]}({x}, {base})'
+  elif is_op_type(expression, Pow):
+    x = generate_lambda_string_wrapper(expression.x, function_map)
+    y = generate_lambda_string_wrapper(expression.y, function_map)
+    return f'({x}**{y})' if not "pow" in function_map else f'{function_map["pow"]}({x}, {y})'
+  elif is_op_type(expression, Sin): 
+    x = generate_lambda_string_wrapper(expression.x, function_map)
+    return f'{function_map["sin"]}({x})'
+  elif is_op_type(expression, Cos):
+    x = generate_lambda_string_wrapper(expression.x, function_map)
+    return f'{function_map["cos"]}({x})'
+  else: raise TypeError(f'Invalid op {type(expression)} cannot be lambdified!')
+
+python_function_map = {
+  'complex': 'complex',
+  'log': 'math.log',
+  'sin': 'math.sin',
+  'cos': 'math.cos',
+}
+
+mpmath_function_map = {
+  'complex': 'mpmath.mpc',
+  'log': 'mpmath.log',
+  'sin': 'mpmath.sin',
+  'cos': 'mpmath.cos',
+}
+
+def global_import(name: str) -> None: globals()[name] = __import__(name)
+
+def lambdify(expression: Expr, backend: Backend = Backend.PYTHON, automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Callable[..., EvaledNumber]:
+  if vars and automatic_vars: raise RuntimeError("Both automatic vars and specified vars cannot be selected!")
+  lambda_map = mpmath_function_map if backend == Backend.MPMATH else python_function_map
+  if backend == Backend.MPMATH: global_import('mpmath')
+  if backend == Backend.PYTHON: global_import('math')
+  lambda_string = generate_lambda_string_wrapper(expression, lambda_map)
+  if automatic_vars: vars = find_expression_vars(expression)
+  if vars: vars = ",".join(sorted(vars))
+  lambda_fxn : Callable[..., EvaledNumber] = eval(f'lambda {vars}: {lambda_string}') if vars else eval(f'lambda: {lambda_string}')
+  return lambda_fxn
