@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, Iterable, Optional
+from typing import Callable, Dict, Iterable, Literal, Optional, overload, Union
 from typing import TYPE_CHECKING
 
 from enum import Enum, auto
 
 from calcora.core.stringops import *
 from calcora.utils import is_op_type
-from calcora.types import EvaledNumber
+from calcora.types import CalcoraNumber
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
@@ -77,13 +77,19 @@ mpmath_function_map = {
 
 def global_import(name: str) -> None: globals()[name] = __import__(name)
 
-def lambdify(expression: Expr, backend: Backend = Backend.PYTHON, automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Callable[..., EvaledNumber]:
+@overload
+def lambdify(expression: Expr, backend: Literal["mpmath"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Callable[..., CalcoraNumber]: ... 
+@overload
+def lambdify(expression: Expr, backend: Literal["python"] = "python", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Callable[..., float]: ...
+
+def lambdify(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Callable[..., Union[float, CalcoraNumber]]:
   if vars and automatic_vars: raise RuntimeError("Both automatic vars and specified vars cannot be selected!")
-  lambda_map = mpmath_function_map if backend == Backend.MPMATH else python_function_map
-  if backend == Backend.MPMATH: global_import('mpmath')
-  if backend == Backend.PYTHON: global_import('math')
+  lambda_map = mpmath_function_map if backend == "mpmath" else python_function_map
+  if backend == "mpmath": global_import('mpmath')
+  elif backend == "python": global_import('math')
+  else: raise ValueError(f"Invalid backend {backend}, must be mpmath, python or numpy")
   lambda_string = generate_lambda_string_wrapper(expression, lambda_map)
   if automatic_vars: vars = find_expression_vars(expression)
   if vars: vars = ",".join(sorted(vars))
-  lambda_fxn : Callable[..., EvaledNumber] = eval(f'lambda {vars}: {lambda_string}') if vars else eval(f'lambda: {lambda_string}')
+  lambda_fxn : Callable[..., Union[float, CalcoraNumber]] = eval(f'lambda {vars}: {lambda_string}') if vars else eval(f'lambda: {lambda_string}')
   return lambda_fxn

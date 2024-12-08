@@ -5,4 +5,3 @@ from mpmath import mpf, mpc
 NumberLike = Union[int, float, str, complex, mpf, mpc]
 RealNumberLike = Union[int, float, str, mpf]
 CalcoraNumber = Union[mpc, mpf]
-EvaledNumber = Union[float, mpc, mpf]
