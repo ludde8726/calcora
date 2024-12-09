@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, Iterable, Literal, Optional, overload, Union
+from typing import Any, Callable, Dict, Iterable, Literal, Optional, overload, Union, Protocol, TypeVar
 from typing import TYPE_CHECKING
 
 from enum import Enum, auto
@@ -48,6 +48,7 @@ def generate_lambda_string_wrapper(expression: Expr, function_map: Dict[str, str
   elif is_op_type(expression, Log):
     x = generate_lambda_string_wrapper(expression.x, function_map)
     base = generate_lambda_string_wrapper(expression.base, function_map)
+    if function_map['log'] == 'numpy.emath.logn': return f'{function_map["log"]}({base}, {x})' # Hack since numpy log takes arguments in different order
     return f'{function_map["log"]}({x}, {base})'
   elif is_op_type(expression, Pow):
     x = generate_lambda_string_wrapper(expression.x, function_map)
@@ -75,18 +76,41 @@ mpmath_function_map = {
   'cos': 'mpmath.cos',
 }
 
+numpy_function_map = {
+  'complex': 'complex',
+  'log': 'numpy.emath.logn',
+  'sin': 'numpy.sin',
+  'cos': 'numpy.cos'
+}
+
 def global_import(name: str) -> None: globals()[name] = __import__(name)
 
-@overload
-def lambdify(expression: Expr, backend: Literal["mpmath"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Callable[..., CalcoraNumber]: ... 
-@overload
-def lambdify(expression: Expr, backend: Literal["python"] = "python", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Callable[..., float]: ...
+T = TypeVar('T')
+class MpmathCallable(Protocol):
+  def __call__(self, *args: CalcoraNumber, **kwargs: CalcoraNumber) -> CalcoraNumber: ...
+class PythonCallable(Protocol):
+  def __call__(self, *args: Union[float, complex], **kwargs: Union[float, complex]) -> Union[float, complex]: ...
+class NumpyCallable(Protocol):
+  def __call__(self, *args: T, **kwargs: T) -> T: ...
 
-def lambdify(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Callable[..., Union[float, CalcoraNumber]]:
+@overload
+def lambdify(expression: Expr, backend: Literal["mpmath"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> MpmathCallable: ... 
+@overload
+def lambdify(expression: Expr, backend: Literal["python"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> PythonCallable: ...
+@overload
+def lambdify(expression: Expr, backend: Literal["numpy"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> NumpyCallable: ...
+
+def lambdify(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Union[MpmathCallable, PythonCallable, NumpyCallable]:
   if vars and automatic_vars: raise RuntimeError("Both automatic vars and specified vars cannot be selected!")
-  lambda_map = mpmath_function_map if backend == "mpmath" else python_function_map
-  if backend == "mpmath": global_import('mpmath')
-  elif backend == "python": global_import('math')
+  if backend == "mpmath": 
+    global_import('mpmath')
+    lambda_map = mpmath_function_map
+  elif backend == "python": 
+    global_import('math')
+    lambda_map = python_function_map
+  elif backend == "numpy": 
+    global_import('numpy')
+    lambda_map = numpy_function_map
   else: raise ValueError(f"Invalid backend {backend}, must be mpmath, python or numpy")
   lambda_string = generate_lambda_string_wrapper(expression, lambda_map)
   if automatic_vars: vars = find_expression_vars(expression)
