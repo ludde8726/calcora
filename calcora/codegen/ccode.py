@@ -26,11 +26,15 @@ def find_includes(expression: Expr, assume_complex: bool = True) -> set[str]:
   inner(expression)
   return includes
 
+C_CONSTANTS_MAP = {
+  'e': 'M_E',
+  'π': 'M_PI'
+}
 
 def generate_expression_string(expression: Expr) -> str:
   if is_op_type(expression, Var): return f'{expression.name}'
   elif is_op_type(expression, Const): return f'{expression.x}'
-  elif is_op_type(expression, Constant): return f''
+  elif is_op_type(expression, Constant): return f'{C_CONSTANTS_MAP[expression.name]}'
   elif is_op_type(expression, Complex): 
     real = generate_expression_string(expression.real)
     imag = generate_expression_string(expression.imag)
@@ -62,15 +66,15 @@ def generate_expression_string(expression: Expr) -> str:
     return f'ccos({x})'
   else: raise TypeError(f'Invalid op {type(expression)} cannot be converted to c code!')
 
-def c_function(expression: Expr, name: Optional[str] = None, automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> str:
+def c_function(expression: Expr, name: Optional[str] = None, automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, custom_type: Optional[str] = None) -> str:
   if vars and automatic_vars: raise RuntimeError("Both automatic vars and specified vars cannot be selected!")
   includes = ''.join(f'#include <{inc}>\n' for inc in find_includes(expression, assume_complex=True))
   expression_str = generate_expression_string(expression)
   fxn_name = name or ''.join(random.choices(string.ascii_letters + '_', k=16))
   vars = find_expression_vars(expression) if automatic_vars else vars
-  res_vars = ', '.join(f'long double complex {var}' for var in vars) if vars else ''
+  res_vars = ', '.join(f'{custom_type or "long double complex*"} {var}' for var in vars) if vars else ''
   return f"""
 {includes}
-long double complex {fxn_name}({res_vars}) {{
+{custom_type or 'long double complex'} {fxn_name}({res_vars}) {{
   return {expression_str};
 }}"""

@@ -67,6 +67,8 @@ python_function_map = {
   'log': 'math.log',
   'sin': 'math.sin',
   'cos': 'math.cos',
+  'e': 'math.e',
+  'π': 'math.pi'
 }
 
 mpmath_function_map = {
@@ -74,13 +76,17 @@ mpmath_function_map = {
   'log': 'mpmath.log',
   'sin': 'mpmath.sin',
   'cos': 'mpmath.cos',
+  'e': 'mpmath.e',
+  'pi': 'mpmath.pi'
 }
 
 numpy_function_map = {
   'complex': 'complex',
   'log': 'numpy.emath.logn',
   'sin': 'numpy.sin',
-  'cos': 'numpy.cos'
+  'cos': 'numpy.cos',
+  'e': 'numpy.e',
+  'pi': 'numpy.pi'
 }
 
 def global_import(name: str) -> None: globals()[name] = __import__(name)
