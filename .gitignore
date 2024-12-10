@@ -10,4 +10,7 @@ examples/
 calcora/untracked/
 calcora.egg-info/
 
+ctest.c
+a.out
+
 todo.txt
