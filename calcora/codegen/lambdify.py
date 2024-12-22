@@ -9,9 +9,13 @@ from calcora.core.stringops import *
 from calcora.utils import is_op_type
 from calcora.types import CalcoraNumber
 
+from mpmath import mpf, mpc
+
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
   from calcora.core.ops import Add, Complex, Const, Constant, Cos, Log, Mul, Neg, Pow, Sin, Var
+  import numpy
+  from numpy.typing import NDArray
 
 class Backend(Enum):
   PYTHON = auto()
@@ -27,9 +31,9 @@ def find_expression_vars(expression: Expr) -> set[str]:
   return found_vars
 
 def generate_lambda_string_wrapper(expression: Expr, function_map: Dict[str, str]) -> str:
-  if is_op_type(expression, Var): return f'{expression.name}'
-  elif is_op_type(expression, Const): return f'{expression.x}'
-  elif is_op_type(expression, Constant): return f''
+  if is_op_type(expression, Var): return f'{expression.name}' if not "var" in function_map else f'{function_map["var"]}({expression.name})'
+  elif is_op_type(expression, Const): return f'{function_map["const"]}({expression.x})'
+  elif is_op_type(expression, Constant): return function_map[expression.name]
   elif is_op_type(expression, Complex): 
     real = generate_lambda_string_wrapper(expression.real, function_map)
     imag = generate_lambda_string_wrapper(expression.imag, function_map)
@@ -63,6 +67,7 @@ def generate_lambda_string_wrapper(expression: Expr, function_map: Dict[str, str
   else: raise TypeError(f'Invalid op {type(expression)} cannot be lambdified!')
 
 python_function_map = {
+  'const': 'float',
   'complex': 'complex',
   'log': 'math.log',
   'sin': 'math.sin',
@@ -72,24 +77,53 @@ python_function_map = {
 }
 
 mpmath_function_map = {
+  'const': 'mpmath.mpf',
   'complex': 'mpmath.mpc',
   'log': 'mpmath.log',
   'sin': 'mpmath.sin',
   'cos': 'mpmath.cos',
   'e': 'mpmath.e',
-  'pi': 'mpmath.pi'
+  'π': 'mpmath.pi'
 }
 
 numpy_function_map = {
-  'complex': 'complex',
+  'const': 'numpy.float64',
+  'complex': 'numpy.complex128',
   'log': 'numpy.emath.logn',
   'sin': 'numpy.sin',
   'cos': 'numpy.cos',
   'e': 'numpy.e',
-  'pi': 'numpy.pi'
+  'π': 'numpy.pi'
 }
 
 def global_import(name: str) -> None: globals()[name] = __import__(name)
+
+@overload
+def convert_type(value: Union[int, str, float, complex, CalcoraNumber], to: Literal['python']) -> Union[float, complex]: ...
+@overload
+def convert_type(value: Union[int, str, float, complex, CalcoraNumber], to: Literal['mpmath']) -> CalcoraNumber: ...
+@overload
+def convert_type(value: Union[numpy.floating, numpy.integer, numpy.cdouble, NDArray[numpy.floating], NDArray[numpy.cdouble], float, int, complex, str], to: Literal['numpy']) -> Union[numpy.float64, numpy.complex128, NDArray[numpy.float64 | numpy.complex128]]: ...
+
+def convert_type(value: Any, to: str) -> Any:
+  if to == 'numpy':
+    if not 'numpy' in globals(): global_import('numpy')
+    if isinstance(value, (numpy.floating, numpy.integer, numpy.ndarray, float, int, complex, str)):
+      if isinstance(value, str):
+        x = numpy.complex128(''.join(value.split()).replace('i', 'j'))
+        return x.real if not x.imag else x
+      return numpy.float64(value) if isinstance(value, (numpy.floating, float, int)) else numpy.complex128(value) if isinstance(value, (complex, numpy.integer)) else value
+    else: raise ValueError("Invalid type for 'numpy' conversion")
+  elif to == 'python':
+    if isinstance(value, (int, str, float, complex, mpc, mpf)):
+      if isinstance(value, str): return complex(''.join(value.split()).replace('i', 'j')).real if not complex(''.join(value.split()).replace('i', 'j')).imag else complex(''.join(value.split()).replace('i', 'j'))
+      if isinstance(value, (complex, mpc, str)): return complex(value).real if not complex(value).imag else complex(value)
+      else: return float(value)
+    else: raise ValueError("Invalid type for 'python' conversion")
+  elif to == 'mpmath':
+    if isinstance(value, (int, str, float, complex, mpc, mpf)): return mpc(value)
+    else: raise ValueError("Invalid type for 'mpmath' conversion")
+  else: raise ValueError("Invalid 'to' argument. Must be 'python', 'mpmath', or 'numpy'.")
 
 T = TypeVar('T')
 class MpmathCallable(Protocol):
@@ -100,13 +134,13 @@ class NumpyCallable(Protocol):
   def __call__(self, *args: T, **kwargs: T) -> T: ...
 
 @overload
-def lambdify(expression: Expr, backend: Literal["mpmath"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> MpmathCallable: ... 
+def lambdify(expression: Expr, backend: Literal["mpmath"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, type_conversion: bool = False) -> MpmathCallable: ... 
 @overload
-def lambdify(expression: Expr, backend: Literal["python"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> PythonCallable: ...
+def lambdify(expression: Expr, backend: Literal["python"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, type_conversion: bool = False) -> PythonCallable: ...
 @overload
-def lambdify(expression: Expr, backend: Literal["numpy"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> NumpyCallable: ...
+def lambdify(expression: Expr, backend: Literal["numpy"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, type_conversion: bool = False) -> NumpyCallable: ...
 
-def lambdify(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Union[MpmathCallable, PythonCallable, NumpyCallable]:
+def lambdify(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, type_conversion: bool = False) -> Union[MpmathCallable, PythonCallable, NumpyCallable]:
   if vars and automatic_vars: raise RuntimeError("Both automatic vars and specified vars cannot be selected!")
   if backend == "mpmath": 
     global_import('mpmath')
@@ -121,5 +155,17 @@ def lambdify(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "
   lambda_string = generate_lambda_string_wrapper(expression, lambda_map)
   if automatic_vars: vars = find_expression_vars(expression)
   if vars: vars = ",".join(sorted(vars))
-  lambda_fxn : Callable[..., Union[float, CalcoraNumber]] = eval(f'lambda {vars}: {lambda_string}') if vars else eval(f'lambda: {lambda_string}')
+  if type_conversion and vars: lambda_fxn : Callable[..., Union[MpmathCallable, PythonCallable, NumpyCallable]] = eval(f"lambda {vars}: (lambda {vars}: {lambda_string})(**{{var:convert_type(var_val, '{backend}') for var, var_val in zip('{vars}'.split(','), [{vars}])}})")
+  else: lambda_fxn = eval(f'lambda {vars}: {lambda_string}') if vars else eval(f'lambda: {lambda_string}')
   return lambda_fxn
+
+def string_lambda(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> str:
+  if vars and automatic_vars: raise RuntimeError("Both automatic vars and specified vars cannot be selected!")
+  if backend == 'mpmath': lambda_map = mpmath_function_map
+  elif backend == 'python': lambda_map = python_function_map
+  elif backend == 'numpy': lambda_map = numpy_function_map
+  else: raise ValueError(f"Invalid backend {backend}, must be mpmath, python or numpy")
+  lambda_string = generate_lambda_string_wrapper(expression, lambda_map)
+  if automatic_vars: vars = find_expression_vars(expression)
+  if vars: vars = ",".join(sorted(vars))
+  return f'lambda {vars}: {lambda_string}' if vars else f'lambda: {lambda_string}'
