@@ -38,7 +38,7 @@ class Const(Expr):
     if isinstance(x, (int, float, str)): self.x = mpf(x)
     elif isinstance(x, mpf): self.x = x
     else: raise TypeError("Const must be initialized with an int, float, str, or mpf.")
-    # if not (self.x.real >= 0 and self.x.imag == 0): raise ValueError("Const value must be a real, positive value!")
+    if not (self.x.real >= 0 and self.x.imag == 0): raise ValueError("Const value must be a real, positive value!")
     super().__init__(self.x)
     self.priority = 999
   
@@ -240,6 +240,7 @@ class Pow(Expr):
     return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
+    return Mul(Pow(self.x, self.y), Add(Mul(self.y, Div(self.x.differentiate(var), self.x)), Mul(self.y.differentiate(var), Ln(self.x))))
     return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
                Mul(Mul(Pow(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
   
