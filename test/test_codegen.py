@@ -150,7 +150,7 @@ class TestLambdify(unittest.TestCase):
   def test_lambdify_numpy(self) -> None:
     self.assertEqual(string_lambda(Cos(PI), backend='numpy'), 'lambda: numpy.cos(numpy.pi)')
     self.assertEqual(string_lambda(Cos(Var('x')), backend='numpy'), 'lambda x: numpy.cos(x)')
-    self.assertAlmostEqual(lambdify(Cos(Var('x')), backend='numpy')(math.pi), -1) # But cos(pi) is of course exactly -1
+    self.assertAlmostEqual(float(lambdify(Cos(Var('x')), backend='numpy')(math.pi)), -1) # But cos(pi) is of course exactly -1
 
   def test_lambdify_python_random(self) -> None:
     for _ in range(1000):

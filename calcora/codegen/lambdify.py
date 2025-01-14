@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Iterable, Literal, Optional, overload, Union, Protocol, TypeVar
+from typing import Any, Callable, Dict, Generic, Iterable, Literal, Optional, overload, Union, Protocol, TypeVar
 from typing import TYPE_CHECKING
 
 from enum import Enum, auto
@@ -98,12 +98,16 @@ numpy_function_map = {
 
 def global_import(name: str) -> None: globals()[name] = __import__(name)
 
+PYTHON_CONVERT_TYPES = Union[int, str, float, complex, mpf, mpc]
+MPMATH_CONVERT_TYPES = Union[int, str, float, complex, mpf, mpc]
+NUMPY_CONVERT_TYPES = Union[numpy.floating, numpy.integer, numpy.cdouble, NDArray[numpy.floating], NDArray[numpy.cdouble], float, int, complex, str]
+
 @overload
-def convert_type(value: Union[int, str, float, complex, CalcoraNumber], to: Literal['python']) -> Union[float, complex]: ...
+def convert_type(value: PYTHON_CONVERT_TYPES, to: Literal['python']) -> Union[float, complex]: ...
 @overload
-def convert_type(value: Union[int, str, float, complex, CalcoraNumber], to: Literal['mpmath']) -> CalcoraNumber: ...
+def convert_type(value: MPMATH_CONVERT_TYPES, to: Literal['mpmath']) -> CalcoraNumber: ...
 @overload
-def convert_type(value: Union[numpy.floating, numpy.integer, numpy.cdouble, NDArray[numpy.floating], NDArray[numpy.cdouble], float, int, complex, str], to: Literal['numpy']) -> Union[numpy.float64, numpy.complex128, NDArray[numpy.float64 | numpy.complex128]]: ...
+def convert_type(value: NUMPY_CONVERT_TYPES, to: Literal['numpy']) -> Union[numpy.float64, numpy.complex128, NDArray[numpy.float64 | numpy.complex128]]: ...
 
 def convert_type(value: Any, to: str) -> Any:
   if to == 'numpy':
@@ -131,16 +135,30 @@ class MpmathCallable(Protocol):
 class PythonCallable(Protocol):
   def __call__(self, *args: Union[float, complex], **kwargs: Union[float, complex]) -> Union[float, complex]: ...
 class NumpyCallable(Protocol):
-  def __call__(self, *args: T, **kwargs: T) -> T: ...
+  def __call__(self, *args: Any, **kwargs: Any) -> Union[numpy.float64, numpy.complex128, NDArray[numpy.float64 | numpy.complex128]]: ...
+
+class TypesafeMpmathCallable(Protocol):
+  def __call__(self, *args: MPMATH_CONVERT_TYPES, **kwargs: MPMATH_CONVERT_TYPES) -> CalcoraNumber: ...
+class TypesafePythonCallable(Protocol):
+  def __call__(self, *args: PYTHON_CONVERT_TYPES, **kwargs: PYTHON_CONVERT_TYPES) -> Union[float, complex]: ...
+class TypesafeNumpyCallable(Protocol):
+  def __call__(self, *args: NUMPY_CONVERT_TYPES, **kwargs: NUMPY_CONVERT_TYPES) -> Union[numpy.float64, numpy.complex128, NDArray[numpy.float64 | numpy.complex128]]: ...
 
 @overload
-def lambdify(expression: Expr, backend: Literal["mpmath"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, type_conversion: bool = False) -> MpmathCallable: ... 
+def lambdify(expression: Expr, backend: Literal["mpmath"], type_conversion: Literal[False] = ..., automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> MpmathCallable: ... 
 @overload
-def lambdify(expression: Expr, backend: Literal["python"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, type_conversion: bool = False) -> PythonCallable: ...
+def lambdify(expression: Expr, backend: Literal["python"], type_conversion: Literal[False] = ..., automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> PythonCallable: ... 
 @overload
-def lambdify(expression: Expr, backend: Literal["numpy"], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, type_conversion: bool = False) -> NumpyCallable: ...
+def lambdify(expression: Expr, backend: Literal["numpy"], type_conversion: Literal[False] = ..., automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> NumpyCallable: ...
 
-def lambdify(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "mpmath", automatic_vars: bool = True, vars: Optional[Iterable[str]] = None, type_conversion: bool = False) -> Union[MpmathCallable, PythonCallable, NumpyCallable]:
+@overload
+def lambdify(expression: Expr, backend: Literal["mpmath"], type_conversion: Literal[True], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> TypesafeMpmathCallable: ... 
+@overload
+def lambdify(expression: Expr, backend: Literal["python"], type_conversion: Literal[True], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> TypesafePythonCallable: ...
+@overload
+def lambdify(expression: Expr, backend: Literal["numpy"], type_conversion: Literal[True], automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> TypesafeNumpyCallable: ...
+
+def lambdify(expression: Expr, backend: Literal["mpmath", "numpy", "python"] = "mpmath", type_conversion: Literal[True, False] = False, automatic_vars: bool = True, vars: Optional[Iterable[str]] = None) -> Union[MpmathCallable, PythonCallable, NumpyCallable, TypesafeMpmathCallable, TypesafePythonCallable, TypesafeNumpyCallable]:
   if vars and automatic_vars: raise RuntimeError("Both automatic vars and specified vars cannot be selected!")
   if backend == "mpmath": 
     global_import('mpmath')
@@ -168,4 +186,5 @@ def string_lambda(expression: Expr, backend: Literal["mpmath", "numpy", "python"
   lambda_string = generate_lambda_string_wrapper(expression, lambda_map)
   if automatic_vars: vars = find_expression_vars(expression)
   if vars: vars = ",".join(sorted(vars))
+  print(repr(expression))
   return f'lambda {vars}: {lambda_string}' if vars else f'lambda: {lambda_string}'

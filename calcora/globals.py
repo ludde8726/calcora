@@ -58,7 +58,7 @@ class _EvalContext:
 
   @property
   def always_simplify(self) -> int: 
-    return self._precision
+    return self._always_simplify
   
   @always_simplify.setter
   def always_simplify(self, value: bool) -> None: 
