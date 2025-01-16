@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import weakref
 
 from calcora.globals import BaseOps, GlobalCounter
-from calcora.types import CalcoraNumber, NumberLike
+from calcora.types import CalcoraNumber, NumericType
 
 from calcora.core.number import Number
 from calcora.core.numeric import Numeric
@@ -38,63 +38,34 @@ class Expr:
     return isinstance(other, Expr) and self.fxn == other.fxn and self.args == other.args
   
   @staticmethod
-  def const_cast(x: Union[NumberLike, Expr]) -> Expr:
+  def const_cast(x: Union[Union[NumericType, Numeric, Expr], Expr]) -> Expr:
     if not isinstance(x, (int, float, mpc, mpf, str, Expr)): raise ValueError(f'Cannot cast type {type(x)} to type Number')
     if isinstance(x, Expr): return x
     return Number(x)
   
-  def add(self, x: Union[NumberLike, Expr]) -> Expr:
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Add')(self, x)
-  def sub(self, x: Union[NumberLike, Expr]) -> Expr: 
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Sub')(self, x)
-  def mul(self, x: Union[NumberLike, Expr]) -> Expr: 
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Mul')(self, x)
-  def div(self, x: Union[NumberLike, Expr]) -> Expr:
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Div')(self, x)
+  def add(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Add')(self, x)
+  def sub(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Sub')(self, x)
+  def mul(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Mul')(self, x)
+  def div(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Div')(self, x)
   def neg(self) -> Expr: return FunctionRegistry.get('Neg')(self)
-  def pow(self, x: Union[NumberLike, Expr]) -> Expr: 
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Pow')(self, x)
-  def log(self, x: Union[NumberLike, Expr]) -> Expr: 
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Log')(self, x)
-  def ln(self) -> Expr: 
-    return FunctionRegistry.get('Ln')(self)
-  def sin(self) -> Expr:
-    return FunctionRegistry.get('Sin')(self)
-  def cos(self) -> Expr:
-    return FunctionRegistry.get('Cos')(self)
+  def pow(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Pow')(self, x)
+  def log(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Log')(self, x)
+  def ln(self) -> Expr: return FunctionRegistry.get('Ln')(self)
+  def sin(self) -> Expr: return FunctionRegistry.get('Sin')(self)
+  def cos(self) -> Expr: return FunctionRegistry.get('Cos')(self)
   
-  def __add__(self, x: Union[NumberLike, Expr]) -> Expr: return self.add(x)
+  def __add__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.add(x)
   def __neg__(self) -> Expr: return self.neg()
-  def __sub__(self, x: Union[NumberLike, Expr]) -> Expr: return self.sub(x)
-  def __mul__(self, x: Union[NumberLike, Expr]) -> Expr: return self.mul(x)
-  def __truediv__(self, x: Union[NumberLike, Expr]) -> Expr: return self.div(x)
-  def __pow__(self, x: Union[NumberLike, Expr]) -> Expr: return self.pow(x)
+  def __sub__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.sub(x)
+  def __mul__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.mul(x)
+  def __truediv__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.div(x)
+  def __pow__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.pow(x)
 
-  def __radd__(self, x: Union[NumberLike, Expr]) -> Expr:
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Add')(x, self)
-  
-  def __rmul__(self, x: Union[NumberLike, Expr]) -> Expr:
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Mul')(x, self)
-
-  def __rsub__(self, x: Union[NumberLike, Expr]) -> Expr:
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Sub')(x, self)
-  
-  def __rtruediv__(self, x: Union[NumberLike, Expr]) -> Expr:
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Div')(x, self)
-
-  def __rpow__(self, x: Union[NumberLike, Expr]) -> Expr:
-    x = Expr.const_cast(x)
-    return FunctionRegistry.get('Pow')(x, self)
+  def __radd__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Add')(x, self) 
+  def __rmul__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Mul')(x, self)
+  def __rsub__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Sub')(x, self)
+  def __rtruediv__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Div')(x, self)
+  def __rpow__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Pow')(x, self)
   
   def __int__(self) -> int: return int(self._eval())
   def __float__(self) -> float: return float(self._eval())
@@ -119,3 +90,4 @@ class Expr:
   def _print_latex(self) -> str: raise NotImplementedError()
 
   def __repr__(self) -> str: return Printer._print(self) 
+  def __str__(self) -> str: return repr(self)
