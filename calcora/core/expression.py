@@ -69,6 +69,7 @@ class Expr:
   
   def __int__(self) -> int: return int(self._eval())
   def __float__(self) -> float: return float(self._eval())
+  def __bool__(self) -> bool: return self != FunctionRegistry.get('Const')(0)
   
   def differentiate(self, var: Var) -> Expr: raise NotImplementedError()
 

@@ -6,6 +6,7 @@ from typing import Literal, TypeGuard, Union
 from enum import Enum, auto
 
 from calcora.types import CalcoraNumber, RealNumberLike, NumericType, RealNumeric
+from calcora.utils import is_const_like, dprint
 
 from calcora.core.expression import Expr
 from calcora.core.numeric import Numeric
@@ -13,7 +14,8 @@ from calcora.core.registry import ConstantRegistry, FunctionRegistry
 
 from calcora.printing.printops import PrintableOp
 
-from mpmath import mpf, mpc, log, sin, cos
+
+from mpmath import mpf, mpc, log, sin, cos, polar, sqrt
 
 if TYPE_CHECKING:
   from mpmath.ctx_mp_python import _constant
@@ -72,7 +74,7 @@ class Const(Expr):
   @staticmethod
   def _init(x: Union[NumericType, Numeric]) -> None: pass
   
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x.value
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x.value.real
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return f'{self.x}'
   def _print_latex(self) -> str: return f'{self.x}'
@@ -99,16 +101,21 @@ class ComplexForm(Enum):
 
 class Complex(Expr):  # TODO: Add support for polar and exponential representation, aswell as fix printing order.
   @overload
-  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True] = ..., form: ComplexForm = ComplexForm.Rectangular) -> None: ...
+  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True] = ..., representation: ComplexForm = ComplexForm.Rectangular) -> None: ...
   @overload
-  def __init__(self, real: Expr, imag: Expr, type_cast: Literal[False], form: ComplexForm = ComplexForm.Rectangular) -> None: ...
+  def __init__(self, real: Expr, imag: Expr, type_cast: Literal[False], representation: ComplexForm = ComplexForm.Rectangular) -> None: ...
 
-  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True, False] = True, form: ComplexForm = ComplexForm.Rectangular) -> None:
+  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True, False] = True, representation: ComplexForm = ComplexForm.Rectangular) -> None:
     if should_not_cast(real, type_cast): self.real = real
     else: self.real = typecast(real)
     if should_not_cast(imag, type_cast): self.imag = imag
     else: self.imag = typecast(imag)
     super().__init__(self.real, self.imag)
+    if not is_const_like(self) and representation != ComplexForm.Rectangular: 
+      dprint("Polar or exponential representation of complex number with variables is not allowed!", 0, "yellow")
+      self._representation = ComplexForm.Rectangular
+    else: self._representation = representation
+    self.priority = 1 if self.real and self.imag else 999
   
   @staticmethod
   def _init(real: ExprArgTypes, imag: ExprArgTypes, form: ComplexForm = ComplexForm.Rectangular) -> None: pass
@@ -121,28 +128,58 @@ class Complex(Expr):  # TODO: Add support for polar and exponential representati
     return Const(0)
   
   def _print_repr(self) -> str:
-    if isinstance(self.imag, Neg):
-      imag = f'{self.imag.x._print_repr()}i'
-      if self.imag == Const(1): imag = '-i'
-      if self.real == Const(0): return f'{imag}'
-      return f'{self.real._print_repr()} - {imag}'
+    if self._representation == ComplexForm.Polar:
+      r, v = polar(self._eval())
+      if r == 1: return f'cos({Numeric(v, skip_conversion=True)}) + isin({Numeric(v, skip_conversion=True)})'
+      else: return f'{Numeric(r, skip_conversion=True)}(cos({Numeric(v, skip_conversion=True)}) + isin({Numeric(v, skip_conversion=True)}))'
+    elif self._representation == ComplexForm.Exponential:
+      r, v = polar(self._eval())
+      if r == 1: return f'e^{Numeric(v, skip_conversion=True)}i'
+      else: return f'{Numeric(r, skip_conversion=True)}e^{Numeric(v, skip_conversion=True)}i'
     else:
-      imag = f'{self.imag._print_repr()}i'
-      if self.imag == Const(1): imag = 'i'
-      if self.real == Const(0): return f'{imag}'
-      return f'{self.real._print_repr()} + {imag}'
+      if isinstance(self.imag, Neg):
+        imag = f'{self.imag.x._print_repr()}i'
+        if self.imag.x == Const(1): imag = 'i'
+        if not self.real: return f'-{imag}'
+        return f'{self.real._print_repr()} - {imag}'
+      else:
+        imag = f'{self.imag._print_repr()}i'
+        if self.imag == Const(1): imag = 'i'
+        if not self.real: return f'{imag}'
+        return f'{self.real._print_repr()} + {imag}'
   
   def _print_latex(self) -> str:
-    if isinstance(self.imag, Neg):
-      imag = f'{self.imag.x._print_latex()}i'
-      if self.imag == Const(1): imag = '-i'
-      if self.real == Const(0): return f'{imag}'
-      return f'{self.real._print_latex()} - {imag}'
+    if self._representation == ComplexForm.Polar:
+      r, v = polar(self._eval())
+      if r == 1: return f'\\cos\\left({Numeric(v, skip_conversion=True)}\\right) + i\\sin\\left({Numeric(v, skip_conversion=True)}\\right)'
+      else: return f'{Numeric(r, skip_conversion=True)}\\left(\\cos\\left({Numeric(v, skip_conversion=True)}\\right) + i\\sin\\left({Numeric(v, skip_conversion=True)}\\right)\\right)'
+    elif self._representation == ComplexForm.Exponential:
+      r, v = polar(self._eval())
+      if r == 1: return f'e^{{{Numeric(v, skip_conversion=True)}i}}'
+      else: return f'{Numeric(r, skip_conversion=True)}e^{{{Numeric(v, skip_conversion=True)}i}}'
     else:
-      imag = f'{self.imag._print_latex()}i'
-      if self.imag == Const(1): imag = 'i'
-      if self.real == Const(0): return f'{imag}'
-      return f'{self.real._print_latex()} + {imag}'
+      if isinstance(self.imag, Neg):
+        imag = f'{self.imag.x._print_latex()}i'
+        if self.imag == Const(1): imag = '-i'
+        if self.real == Const(0): return f'{imag}'
+        return f'{self.real._print_latex()} - {imag}'
+      else:
+        imag = f'{self.imag._print_latex()}i'
+        if self.imag == Const(1): imag = 'i'
+        if self.real == Const(0): return f'{imag}'
+        return f'{self.real._print_latex()} + {imag}'
+  
+  @property
+  def representation(self) -> ComplexForm: return self._representation
+  
+  @representation.setter
+  def representation(self, representation: ComplexForm) -> None:
+    if not is_const_like(self) and representation != ComplexForm.Rectangular: dprint("Polar or exponential representation of complex number with variables is not allowed!", 0, "yellow")
+    self._representation = representation
+    if representation == ComplexForm.Polar or representation == ComplexForm.Exponential: self.priority = 2
+    elif representation == ComplexForm.Rectangular and self.real and self.imag: self.priority = 1
+    elif representation == ComplexForm.Rectangular and self.imag: self.priority = 999
+    elif representation == ComplexForm.Rectangular and self.real: self.priority = 999
 
 class Add(Expr):
   @overload

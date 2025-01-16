@@ -9,7 +9,7 @@ from calcora.globals import BaseOps, PrintOptions
 from calcora.globals import ec, dc, pc
 from calcora.types import CalcoraNumber, NumberLike
 
-from mpmath import mpf, mpc, workdps, mpmathify
+from mpmath import mpf, mpc, workdps
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
@@ -83,6 +83,7 @@ def is_const_like(op: Expr) -> bool:
   return all(is_const_like(arg) for arg in op.args)
 
 def reconstruct_op(op: Expr, *args: Any) -> Expr:
+  if op.fxn == BaseOps.Complex: return op.__class__(*args, type_cast=False, representation=op.representation) # type: ignore
   return op.__class__(*args, type_cast=False)
 
 def colored(string: str, color: Union[str, Iterable[str]]) -> str:

@@ -4,7 +4,7 @@ from typing import Callable, Dict, Tuple
 from typing import TYPE_CHECKING
 
 from calcora.globals import BaseOps
-from calcora.utils import has_constant, is_const_like
+from calcora.utils import has_constant, is_const_like, reconstruct_op
 
 from calcora.match.pattern import NamedAny
 from calcora.match.pattern import Pattern
@@ -35,6 +35,6 @@ def partial_eval(x: Expr) -> Expr:
       x = Ln(new_args[0], type_cast=False)
     else: 
       new_args = [partial_eval(arg) for arg in x.args]
-      x = x.__class__(*new_args, type_cast=False)
+      x = reconstruct_op(x, *new_args)
   if is_const_like(x) and not has_constant(x): return x.eval()
   return x
