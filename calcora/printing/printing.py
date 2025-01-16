@@ -9,7 +9,7 @@ from calcora.globals import BaseOps, PrintOptions
 from calcora.globals import pc
 from calcora.utils import is_op_type
 
-from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub
+from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub, PrintableOp
 
 from calcora.core.lazy import LazyNeg, LazyMul, LazyAdd, LazyLog, LazyConst, LazyPow
 from calcora.core.registry import ConstantRegistry, FunctionRegistry
@@ -27,6 +27,7 @@ class Printer:
     elif is_op_type(expression, Var): return f'Var({expression.name})'
     elif is_op_type(expression, AnyOp): return f'Any({expression.name}, match={expression.match}, const={expression.assert_const_like})'
     args = ', '.join([Printer._print_classes(arg) for arg in expression.args])
+    if isinstance(expression, PrintableOp): return f'{expression.print_name}({args})'
     return f'{expression.__class__.__name__}({args})'
 
   @staticmethod

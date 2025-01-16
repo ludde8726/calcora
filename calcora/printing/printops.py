@@ -15,9 +15,10 @@ Mul : Callable[[], Type[Expr]] = lambda: FunctionRegistry.get('Mul')
 Add : Callable[[], Type[Expr]] = lambda: FunctionRegistry.get('Add')
 
 class PrintableOp:
-  def __init__(self, *args: Expr) -> None:
+  def __init__(self, *args: Expr, name: str) -> None:
     self.args = args
     self.fxn = BaseOps.NoOp
+    self.print_name = name
 
   def __eq__(self, other: object) -> bool:
     return type(self) is type(other) and self.args == other.args # type: ignore
@@ -31,7 +32,7 @@ class PrintableSub(PrintableOp):
     self.x = x
     self.y = y
     self.priority = 1
-    super().__init__(x, y)
+    super().__init__(x, y, name='Sub')
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -52,7 +53,7 @@ class PrintableDiv(PrintableOp):
     self.x = x
     self.y = y
     self.priority = 2
-    super().__init__(x, y)
+    super().__init__(x, y, name='Div')
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -70,7 +71,7 @@ class PrintableLn(PrintableOp):
   def __init__(self, x: Expr, type_cast: bool = False) -> None:
     self.x = x
     self.priority = 4
-    super().__init__(x)
+    super().__init__(x, name='Ln')
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()

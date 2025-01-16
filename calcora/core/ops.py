@@ -27,12 +27,14 @@ def should_not_cast(x: ExprArgTypes, should_c: bool) -> TypeGuard[Expr]: return 
 def typecast(x: Union[NumericType, Numeric, Expr, PrintableOp]) -> Expr:
   if isinstance(x, Expr): return x
   elif isinstance(x, PrintableOp): return x # type: ignore
-  elif isinstance(x, Numeric): return Const(x)
-  elif isinstance(x, (float, int)): return Const(Numeric(x))
+  elif isinstance(x, Numeric): return Const(x) if x >= 0 else Neg(Const(abs(x)))
+  elif isinstance(x, (float, int)): 
+    n = Numeric(x)
+    return Const(n) if n >= 0 else Neg(Const(abs(n)))
   elif isinstance(x, (complex, str, mpf, mpc)): 
     num = Numeric(x)
-    if num.imag: return Complex(num.real, num.imag)
-    else: return Const(num)
+    if num.imag: return Complex(num.real if num.real >= 0 else Neg(abs(num.real)), num.imag if num.imag >= 0 else Neg(abs(num.imag)))
+    else: return Const(num) if num >= 0 else Const(abs(num))
   else: raise TypeError(f"Invalid type {type(x)} for conversion to type Const")
 
 class Var(Expr):
@@ -48,7 +50,7 @@ class Var(Expr):
     return Const(1) if self == var else Const(0)
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    if self.name in kwargs: return kwargs[self.name]._eval()
+    if self.name in kwargs: return typecast(kwargs[self.name])._eval()
     raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
   
   def _print_repr(self) -> str: return f'{self.name}'

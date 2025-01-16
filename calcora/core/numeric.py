@@ -6,7 +6,8 @@ from calcora.globals import ec
 from calcora.types import CalcoraNumber, NumericType, RealNumeric
 from calcora.utils import mpmathcast
 
-from mpmath import mpf, mpc, nstr
+from mpmath import fabs, floor, ceil
+from mpmath import mpf, mpc, nstr, workdps
 
 class Numeric:
   def __init__(self, x: NumericType, precision: Optional[int] = None, skip_conversion: bool = False) -> None:
@@ -17,6 +18,10 @@ class Numeric:
   def real(self) -> Numeric: return Numeric(mpc(self.value.real), precision=self.precision, skip_conversion=True)
   @property
   def imag(self) -> Optional[Numeric]: return Numeric(mpc(self.value.imag), precision=self.precision, skip_conversion=True) if self.value.imag else Numeric(mpc(0), precision=self.precision, skip_conversion=True)
+  @property
+  def re(self) -> Numeric: return self.real
+  @property
+  def im(self) -> Optional[Numeric]: return self.imag
 
   @staticmethod
   def numeric_cast(x: Union[NumericType, Numeric], precision: Optional[int] = None) -> Numeric:
@@ -66,3 +71,43 @@ class Numeric:
   
   def __float__(self) -> float:
     return float(self.value.real)
+  
+  def get_dps(self, other: Union[NumericType, Numeric]) -> int:
+    if isinstance(other, Numeric): return max(self.precision, other.precision)
+    return self.precision
+  
+  def __pos__(self) -> Numeric: return self
+  def __neg__(self) -> Numeric: 
+    with workdps(self.precision): return Numeric(-self.value, precision=self.precision, skip_conversion=True)
+  def __abs__(self) -> Numeric: 
+    with workdps(self.precision): return Numeric(fabs(self.value), precision=self.precision, skip_conversion=True)
+  def __floor__(self) -> Numeric: 
+    with workdps(self.precision): return Numeric(floor(self.value), precision=self.precision, skip_conversion=True)
+  def __ceil__(self) -> Numeric: 
+    with workdps(self.precision): return Numeric(ceil(self.value), precision=self.precision, skip_conversion=True)
+  
+  def __add__(self, other: Union[NumericType, Numeric]) -> Numeric: 
+    with workdps(work_dps := self.get_dps(other)): return Numeric(self.value + Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
+  def __sub__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(self.value - Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
+  def __mul__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(self.value * Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
+  def __truediv__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(self.value / Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
+  def __floordiv__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(self.value // Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
+  def __pow__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(self.value ** Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
+
+  def __radd__(self, other: Union[NumericType, Numeric]) -> Numeric: 
+    with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value + self.value, precision=work_dps, skip_conversion=True)
+  def __rsub__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value - self.value, precision=work_dps, skip_conversion=True)
+  def __rmul__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value * self.value, precision=work_dps, skip_conversion=True)
+  def __rtruediv__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value / self.value, precision=work_dps, skip_conversion=True)
+  def __rfloordiv__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value // self.value, precision=work_dps, skip_conversion=True)
+  def __rpow__(self, other: Union[NumericType, Numeric]) -> Numeric:
+    with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value ** self.value, precision=work_dps, skip_conversion=True)
