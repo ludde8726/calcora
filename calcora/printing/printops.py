@@ -27,7 +27,7 @@ class PrintableOp:
   def __repr__(self) -> str: return self._print_repr()
 
 class PrintableSub(PrintableOp): 
-  def __init__(self, x: Expr, y: Expr) -> None:
+  def __init__(self, x: Expr, y: Expr, type_cast: bool = False) -> None:
     self.x = x
     self.y = y
     self.priority = 1
@@ -48,7 +48,7 @@ class PrintableSub(PrintableOp):
     return f'{x} - {y}'
 
 class PrintableDiv(PrintableOp):
-  def __init__(self, x: Expr, y: Expr) -> None:
+  def __init__(self, x: Expr, y: Expr, type_cast: bool = False) -> None:
     self.x = x
     self.y = y
     self.priority = 2
@@ -67,7 +67,7 @@ class PrintableDiv(PrintableOp):
     return f'\\frac{{{x}}}{{{y}}}'
   
 class PrintableLn(PrintableOp):
-  def __init__(self, x: Expr) -> None:
+  def __init__(self, x: Expr, type_cast: bool = False) -> None:
     self.x = x
     self.priority = 4
     super().__init__(x)

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from typing import Union
+from typing import TYPE_CHECKING, overload
+from typing import Literal, TypeGuard, Union
 
 from enum import Enum, auto
 
-from calcora.types import CalcoraNumber, RealNumberLike, NumericType
+from calcora.types import CalcoraNumber, RealNumberLike, NumericType, RealNumeric
 
 from calcora.core.expression import Expr
 from calcora.core.numeric import Numeric
@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 
 ExprArgTypes = Union[NumericType, Numeric, Expr]
 
+def should_not_numeric_cast(x: Union[Numeric, RealNumeric], should_c: bool) -> TypeGuard[Numeric]: return not should_c
+def should_not_cast(x: ExprArgTypes, should_c: bool) -> TypeGuard[Expr]: return not should_c
+
 # Note: There should proboably be some sort of argument on the ops that specify if typecast should be called
 def typecast(x: Union[NumericType, Numeric, Expr, PrintableOp]) -> Expr:
   if isinstance(x, Expr): return x
@@ -33,7 +36,7 @@ def typecast(x: Union[NumericType, Numeric, Expr, PrintableOp]) -> Expr:
   else: raise TypeError(f"Invalid type {type(x)} for conversion to type Const")
 
 class Var(Expr):
-  def __init__(self, name: str) -> None:
+  def __init__(self, name: str, type_cast : Literal[True, False] = True) -> None:
     self.name = name
     super().__init__(name)
     self.priority = 999
@@ -52,8 +55,14 @@ class Var(Expr):
   def _print_latex(self) -> str: return f'{self.name}'
   
 class Const(Expr):
-  def __init__(self, x: Union[NumericType, Numeric]) -> None:
-    self.x = Numeric.numeric_cast(x)
+  @overload
+  def __init__(self, x: Union[NumericType, Numeric], type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Numeric, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: Union[NumericType, Numeric], type_cast: Literal[True, False] = True) -> None:
+    if should_not_numeric_cast(x, type_cast): self.x = x
+    else: self.x = Numeric.numeric_cast(x)
     if self.x.real < 0 or self.x.imag: raise ValueError("Const value must be a real, positive value!")
     super().__init__(self.x)
     self.priority = 999
@@ -67,7 +76,7 @@ class Const(Expr):
   def _print_latex(self) -> str: return f'{self.x}'
   
 class Constant(Expr):
-  def __init__(self, x: _constant, name: str) -> None: 
+  def __init__(self, x: _constant, name: str, type_cast: bool = True) -> None: 
     self.x = x
     self.name = name
     super().__init__(self.x, name)
@@ -87,9 +96,16 @@ class ComplexForm(Enum):
   Exponential = auto()
 
 class Complex(Expr):  # TODO: Add support for polar and exponential representation, aswell as fix printing order.
-  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, form: ComplexForm = ComplexForm.Rectangular) -> None:
-    self.real = typecast(real)
-    self.imag = typecast(imag)
+  @overload
+  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True] = ..., form: ComplexForm = ComplexForm.Rectangular) -> None: ...
+  @overload
+  def __init__(self, real: Expr, imag: Expr, type_cast: Literal[False], form: ComplexForm = ComplexForm.Rectangular) -> None: ...
+
+  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True, False] = True, form: ComplexForm = ComplexForm.Rectangular) -> None:
+    if should_not_cast(real, type_cast): self.real = real
+    else: self.real = typecast(real)
+    if should_not_cast(imag, type_cast): self.imag = imag
+    else: self.imag = typecast(imag)
     super().__init__(self.real, self.imag)
   
   @staticmethod
@@ -127,9 +143,16 @@ class Complex(Expr):  # TODO: Add support for polar and exponential representati
       return f'{self.real._print_latex()} + {imag}'
 
 class Add(Expr):
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes) -> None:
-    self.x = typecast(x)
-    self.y = typecast(y)
+  @overload
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    if should_not_cast(y, type_cast): self.y = y
+    else: self.y = typecast(y)
     super().__init__(self.x, self.y, commutative=True)
     self.priority = 1
 
@@ -157,8 +180,14 @@ class Add(Expr):
     return f'{x} + {y}'
 
 class Neg(Expr):
-  def __init__(self, x: ExprArgTypes) -> None:
-    self.x = typecast(x)
+  @overload
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
     super().__init__(self.x)
     self.priority = 0
 
@@ -182,9 +211,16 @@ class Neg(Expr):
     return f'-{x}'
   
 class Mul(Expr):
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes) -> None:
-    self.x = typecast(x)
-    self.y = typecast(y)
+  @overload
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    if should_not_cast(y, type_cast): self.y = y
+    else: self.y = typecast(y)
     super().__init__(self.x, self.y, commutative=True)
     self.priority = 2
   
@@ -212,9 +248,16 @@ class Mul(Expr):
     return f'{x} \\cdot {y}'
 
 class Log(Expr):
-  def __init__(self, x: ExprArgTypes, base: ExprArgTypes) -> None:
-    self.x = typecast(x)
-    self.base = typecast(base)
+  @overload
+  def __init__(self, x: ExprArgTypes, base: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, base: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, base: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    if should_not_cast(base, type_cast): self.base = base
+    else: self.base = typecast(base)
     super().__init__(self.x, self.base)
     self.priority = 4
   
@@ -243,9 +286,16 @@ class Log(Expr):
     return f'\\log_{{{base}}}\\left({x}\\right)'
 
 class Pow(Expr):
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes) -> None:
-    self.x = typecast(x)
-    self.y = typecast(y)
+  @overload
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    if should_not_cast(y, type_cast): self.y = y
+    else: self.y = typecast(y)
     super().__init__(self.x, self.y)
     self.priority = 3
   
@@ -275,8 +325,14 @@ class Pow(Expr):
     return f'{{{x}}}^{{{y}}}'
 
 class Sin(Expr):
-  def __init__(self, x: ExprArgTypes) -> None:
-    self.x = typecast(x)
+  @overload
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
     super().__init__(self.x)
     self.priority = 4
   
@@ -298,8 +354,14 @@ class Sin(Expr):
     return f'\\sin\\left({x}\\right)'
   
 class Cos(Expr):
-  def __init__(self, x: ExprArgTypes) -> None:
-    self.x = typecast(x)
+  @overload
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
     super().__init__(self.x)
     self.priority = 4
   
@@ -321,7 +383,12 @@ class Cos(Expr):
     return f'\\cos\\left({x}\\right)'
 
 class Div(Expr):
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes) -> Expr: # type: ignore
+  @overload
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
+  @overload
+  def __new__(cls, x: Expr, y: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
+
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
     if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
     return Mul(x, Pow(y, Neg(Const(1))))
   
@@ -329,21 +396,31 @@ class Div(Expr):
   def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
   
 class Sub(Expr):
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes) -> Expr: # type: ignore
+  @overload
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
+  @overload
+  def __new__(cls, x: Expr, y: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
+
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
     return Add(x, Neg(y))
   
   @staticmethod
   def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
   
 class Ln(Expr):
-  def __new__(cls, x: ExprArgTypes) -> Expr: # type: ignore
+  @overload
+  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
+  @overload
+  def __new__(cls, x: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
+
+  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
     return Log(x, ConstantRegistry.get('e'))
   
   @staticmethod
   def _init(x: ExprArgTypes) -> None: pass
 
 class AnyOp(Expr):
-  def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False) -> None:
+  def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False, type_cast: Literal[True, False] = True) -> None:
     self.match = match
     self.name = name
     self.assert_const_like = assert_const_like

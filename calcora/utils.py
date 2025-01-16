@@ -83,7 +83,7 @@ def is_const_like(op: Expr) -> bool:
   return all(is_const_like(arg) for arg in op.args)
 
 def reconstruct_op(op: Expr, *args: Any) -> Expr:
-  return op.__class__(*args)
+  return op.__class__(*args, type_cast=False)
 
 def colored(string: str, color: Union[str, Iterable[str]]) -> str:
   colors = [color] if isinstance(color, str) else color
