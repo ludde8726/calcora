@@ -1,18 +1,36 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import Union
 
 from enum import Enum, auto
 
-from calcora.types import CalcoraNumber, RealNumberLike
+from calcora.types import CalcoraNumber, RealNumberLike, NumericType
 
 from calcora.core.expression import Expr
+from calcora.core.numeric import Numeric
 from calcora.core.registry import ConstantRegistry, FunctionRegistry
+
+from calcora.printing.printops import PrintableOp
 
 from mpmath import mpf, mpc, log, sin, cos
 
 if TYPE_CHECKING:
   from mpmath.ctx_mp_python import _constant
+
+ExprArgTypes = Union[NumericType, Numeric, Expr]
+
+# Note: There should proboably be some sort of argument on the ops that specify if typecast should be called
+def typecast(x: Union[NumericType, Numeric, Expr, PrintableOp]) -> Expr:
+  if isinstance(x, Expr): return x
+  elif isinstance(x, PrintableOp): return x # type: ignore
+  elif isinstance(x, Numeric): return Const(x)
+  elif isinstance(x, (float, int)): return Const(Numeric(x))
+  elif isinstance(x, (complex, str, mpf, mpc)): 
+    num = Numeric(x)
+    if num.imag: return Complex(num.real, num.imag)
+    else: return Const(num)
+  else: raise TypeError(f"Invalid type {type(x)} for conversion to type Const")
 
 class Var(Expr):
   def __init__(self, name: str) -> None:
@@ -34,18 +52,16 @@ class Var(Expr):
   def _print_latex(self) -> str: return f'{self.name}'
   
 class Const(Expr):
-  def __init__(self, x: RealNumberLike) -> None:
-    if isinstance(x, (int, float, str)): self.x = mpf(x)
-    elif isinstance(x, mpf): self.x = x
-    else: raise TypeError("Const must be initialized with an int, float, str, or mpf.")
-    if not (self.x.real >= 0 and self.x.imag == 0): raise ValueError("Const value must be a real, positive value!")
+  def __init__(self, x: Union[NumericType, Numeric]) -> None:
+    self.x = Numeric.numeric_cast(x)
+    if self.x.real < 0 or self.x.imag: raise ValueError("Const value must be a real, positive value!")
     super().__init__(self.x)
     self.priority = 999
   
   @staticmethod
-  def _init(x: RealNumberLike) -> None: pass
+  def _init(x: Union[NumericType, Numeric]) -> None: pass
   
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x.value
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return f'{self.x}'
   def _print_latex(self) -> str: return f'{self.x}'
@@ -54,7 +70,7 @@ class Constant(Expr):
   def __init__(self, x: _constant, name: str) -> None: 
     self.x = x
     self.name = name
-    super().__init__(x, name)
+    super().__init__(self.x, name)
     self.priority = 999
   
   @staticmethod
@@ -71,13 +87,13 @@ class ComplexForm(Enum):
   Exponential = auto()
 
 class Complex(Expr):  # TODO: Add support for polar and exponential representation, aswell as fix printing order.
-  def __init__(self, real: Expr, imag: Expr, form: ComplexForm = ComplexForm.Rectangular) -> None:
-    self.real = real
-    self.imag = imag
-    super().__init__(real, imag)
+  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, form: ComplexForm = ComplexForm.Rectangular) -> None:
+    self.real = typecast(real)
+    self.imag = typecast(imag)
+    super().__init__(self.real, self.imag)
   
   @staticmethod
-  def _init(real: Expr, imag: Expr, form: ComplexForm = ComplexForm.Rectangular) -> None: pass
+  def _init(real: ExprArgTypes, imag: ExprArgTypes, form: ComplexForm = ComplexForm.Rectangular) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
     return mpc(real=self.real._eval(**kwargs), imag=self.imag._eval(**kwargs))
@@ -111,14 +127,14 @@ class Complex(Expr):  # TODO: Add support for polar and exponential representati
       return f'{self.real._print_latex()} + {imag}'
 
 class Add(Expr):
-  def __init__(self, x: Expr, y: Expr) -> None:
-    self.x = x
-    self.y = y
-    super().__init__(x, y, commutative=True)
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes) -> None:
+    self.x = typecast(x)
+    self.y = typecast(y)
+    super().__init__(self.x, self.y, commutative=True)
     self.priority = 1
 
   @staticmethod
-  def _init(x: Expr, y: Expr) -> None: pass
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) + self.y._eval(**kwargs)
@@ -141,13 +157,13 @@ class Add(Expr):
     return f'{x} + {y}'
 
 class Neg(Expr):
-  def __init__(self, x: Expr) -> None:
-    self.x = x
-    super().__init__(x)
+  def __init__(self, x: ExprArgTypes) -> None:
+    self.x = typecast(x)
+    super().__init__(self.x)
     self.priority = 0
 
   @staticmethod
-  def _init(x: Expr) -> None: pass
+  def _init(x: ExprArgTypes) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return -self.x._eval(**kwargs)
@@ -166,14 +182,14 @@ class Neg(Expr):
     return f'-{x}'
   
 class Mul(Expr):
-  def __init__(self, x: Expr, y: Expr) -> None:
-    self.x = x
-    self.y = y
-    super().__init__(x, y, commutative=True)
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes) -> None:
+    self.x = typecast(x)
+    self.y = typecast(y)
+    super().__init__(self.x, self.y, commutative=True)
     self.priority = 2
   
   @staticmethod
-  def _init(x: Expr, y: Expr) -> None: pass
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) * self.y._eval(**kwargs)
@@ -196,14 +212,14 @@ class Mul(Expr):
     return f'{x} \\cdot {y}'
 
 class Log(Expr):
-  def __init__(self, x: Expr, base: Expr) -> None:
-    self.x = x
-    self.base = base
-    super().__init__(x, base)
+  def __init__(self, x: ExprArgTypes, base: ExprArgTypes) -> None:
+    self.x = typecast(x)
+    self.base = typecast(base)
+    super().__init__(self.x, self.base)
     self.priority = 4
   
   @staticmethod
-  def _init(x: Expr, base: Expr) -> None: pass
+  def _init(x: ExprArgTypes, base: ExprArgTypes) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
     return log(self.x._eval(**kwargs), self.base._eval(**kwargs))
@@ -227,14 +243,14 @@ class Log(Expr):
     return f'\\log_{{{base}}}\\left({x}\\right)'
 
 class Pow(Expr):
-  def __init__(self, x: Expr, y: Expr) -> None:
-    self.x = x
-    self.y = y
-    super().__init__(x, y)
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes) -> None:
+    self.x = typecast(x)
+    self.y = typecast(y)
+    super().__init__(self.x, self.y)
     self.priority = 3
   
   @staticmethod
-  def _init(x: Expr, y: Expr) -> None: pass
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
@@ -259,13 +275,13 @@ class Pow(Expr):
     return f'{{{x}}}^{{{y}}}'
 
 class Sin(Expr):
-  def __init__(self, x: Expr) -> None:
-    self.x = x
-    super().__init__(x)
+  def __init__(self, x: ExprArgTypes) -> None:
+    self.x = typecast(x)
+    super().__init__(self.x)
     self.priority = 4
   
   @staticmethod
-  def _init(x: Expr) -> None: pass
+  def _init(x: ExprArgTypes) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return sin(self.x._eval(**kwargs))
@@ -282,13 +298,13 @@ class Sin(Expr):
     return f'\\sin\\left({x}\\right)'
   
 class Cos(Expr):
-  def __init__(self, x: Expr) -> None:
-    self.x = x
-    super().__init__(x)
+  def __init__(self, x: ExprArgTypes) -> None:
+    self.x = typecast(x)
+    super().__init__(self.x)
     self.priority = 4
   
   @staticmethod
-  def _init(x: Expr) -> None: pass
+  def _init(x: ExprArgTypes) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return cos(self.x._eval(**kwargs))
@@ -305,26 +321,26 @@ class Cos(Expr):
     return f'\\cos\\left({x}\\right)'
 
 class Div(Expr):
-  def __new__(cls, x: Expr, y: Expr) -> Expr: # type: ignore
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes) -> Expr: # type: ignore
     if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
     return Mul(x, Pow(y, Neg(Const(1))))
   
   @staticmethod
-  def _init(x: Expr, y: Expr) -> None: pass
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
   
 class Sub(Expr):
-  def __new__(cls, x: Expr, y: Expr) -> Expr: # type: ignore
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes) -> Expr: # type: ignore
     return Add(x, Neg(y))
   
   @staticmethod
-  def _init(x: Expr, y: Expr) -> None: pass
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
   
 class Ln(Expr):
-  def __new__(cls, x: Expr) -> Expr: # type: ignore
+  def __new__(cls, x: ExprArgTypes) -> Expr: # type: ignore
     return Log(x, ConstantRegistry.get('e'))
   
   @staticmethod
-  def _init(x: Expr) -> None: pass
+  def _init(x: ExprArgTypes) -> None: pass
 
 class AnyOp(Expr):
   def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False) -> None:

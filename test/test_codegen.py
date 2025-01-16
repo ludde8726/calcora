@@ -158,7 +158,7 @@ class TestLambdify(unittest.TestCase):
       expr = generate_random_expression(random.randint(1, 5), num_vars)
       lambda_expr = lambdify(expr, "python")
       args = {name:random.uniform(0, 100) for name in find_expression_vars(expr)}
-      self.assertAlmostEqual(float(expr._eval(**{k:Number(v) for k,v in args.items()})), lambda_expr(**args), delta=1e-3)
+      self.assertAlmostEqual(float(expr.evalf(**{k:Number(v) for k,v in args.items()})), lambda_expr(**args), delta=1e-3)
   
   def test_lambdify_mpmath_random(self) -> None:
     ec.precision = 100
@@ -177,7 +177,7 @@ class TestLambdify(unittest.TestCase):
       expr = generate_random_expression(random.randint(1, 5), num_vars)
       lambda_expr = lambdify(expr, "numpy")
       args = {name:np.float64(random.uniform(0, 100)) for name in find_expression_vars(expr)}
-      self.assertAlmostEqual(np.float64(float(expr._eval(**{k:Number(v) for k,v in args.items()}))), 
+      self.assertAlmostEqual(np.float64(float(expr.evalf(**{k:Number(v) for k,v in args.items()}))), 
                        lambda_expr(**args), delta=1e-7)
 
 if __name__ == '__main__':

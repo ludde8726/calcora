@@ -4,10 +4,11 @@ from typing import Any, Tuple, Union
 from typing import TYPE_CHECKING
 import weakref
 
-from calcora.globals import BaseOps, GlobalCounter, dc
+from calcora.globals import BaseOps, GlobalCounter
 from calcora.types import CalcoraNumber, NumberLike
 
 from calcora.core.number import Number
+from calcora.core.numeric import Numeric
 from calcora.core.registry import FunctionRegistry
 
 from calcora.printing.printing import Printer
@@ -100,10 +101,17 @@ class Expr:
   
   def differentiate(self, var: Var) -> Expr: raise NotImplementedError()
 
+  # Note: Might not be the best option?
+  def evalf(self, **kwargs: Expr) -> Numeric:
+    result = Numeric(self._eval(**kwargs))
+    dprint(f'Evaluating $ -> $', 1, 'green', self, result)
+    return result
+  
   def eval(self, **kwargs: Expr) -> Expr:
     result = Number(self._eval(**kwargs))
     dprint(f'Evaluating $ -> $', 1, 'green', self, result)
     return result
+  
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: raise NotImplementedError()
 
   def _print_repr(self) -> str: raise NotImplementedError()

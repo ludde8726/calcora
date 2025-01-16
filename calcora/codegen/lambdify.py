@@ -16,6 +16,9 @@ if TYPE_CHECKING:
   from calcora.core.ops import Add, Complex, Const, Constant, Cos, Log, Mul, Neg, Pow, Sin, Var
   import numpy
   from numpy.typing import NDArray
+  PYTHON_CONVERT_TYPES = Union[int, str, float, complex, mpf, mpc]
+  MPMATH_CONVERT_TYPES = Union[int, str, float, complex, mpf, mpc]
+  NUMPY_CONVERT_TYPES = Union[numpy.floating, numpy.integer, numpy.cdouble, NDArray[numpy.floating], NDArray[numpy.cdouble], float, int, complex, str]
 
 class Backend(Enum):
   PYTHON = auto()
@@ -97,10 +100,6 @@ numpy_function_map = {
 }
 
 def global_import(name: str) -> None: globals()[name] = __import__(name)
-
-PYTHON_CONVERT_TYPES = Union[int, str, float, complex, mpf, mpc]
-MPMATH_CONVERT_TYPES = Union[int, str, float, complex, mpf, mpc]
-NUMPY_CONVERT_TYPES = Union[numpy.floating, numpy.integer, numpy.cdouble, NDArray[numpy.floating], NDArray[numpy.cdouble], float, int, complex, str]
 
 @overload
 def convert_type(value: PYTHON_CONVERT_TYPES, to: Literal['python']) -> Union[float, complex]: ...
@@ -186,5 +185,4 @@ def string_lambda(expression: Expr, backend: Literal["mpmath", "numpy", "python"
   lambda_string = generate_lambda_string_wrapper(expression, lambda_map)
   if automatic_vars: vars = find_expression_vars(expression)
   if vars: vars = ",".join(sorted(vars))
-  print(repr(expression))
   return f'lambda {vars}: {lambda_string}' if vars else f'lambda: {lambda_string}'

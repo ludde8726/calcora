@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Type, TypeGuard, TypeVar, Union
+from typing import Any, Iterable, Optional, Type, TypeGuard, TypeVar, Union
 from typing import TYPE_CHECKING
 
+import re
+
 from calcora.globals import BaseOps, PrintOptions
-from calcora.globals import dc, pc
+from calcora.globals import ec, dc, pc
+from calcora.types import CalcoraNumber, NumberLike
+
+from mpmath import mpf, mpc, workdps, mpmathify
 
 if TYPE_CHECKING:
   from calcora.core.expression import Expr
@@ -86,6 +91,29 @@ def colored(string: str, color: Union[str, Iterable[str]]) -> str:
   if invalid_colors: raise ValueError(f"Invalid color(s): {', '.join(invalid_colors)}")
   color_codes = ''.join(getattr(TerminalColors, c) for c in colors)
   return f"{color_codes}{string}{TerminalColors.reset}"
+
+def mpmathcast(x: NumberLike, precision: Optional[int] = None) -> CalcoraNumber:
+  precision = precision if precision else ec.precision
+  with workdps(precision):
+    if isinstance(x, (float, int, complex)): return mpc(x)
+    elif isinstance(x, str):
+      x = x.strip().lower().replace('i', 'j')
+      x = re.sub(r'([+-])j$', r'\g<1>1j', x, flags=re.IGNORECASE)
+      x = re.sub(r'^j', '1j', x, flags=re.IGNORECASE)
+      x = re.sub(r'([+-])j', r'\g<1>1j', x, flags=re.IGNORECASE)
+
+      complex_match = re.match(r'^(?P<real>[-+]?\d*\.?\d+)?(?P<imag>[-+]?\d*\.?\d+)[ij]$', x)
+      if complex_match:
+          real = complex_match.group('real') or '0'
+          imag = complex_match.group('imag')
+          return mpc(real, imag)
+      if re.match(r'^[-+]?\d*\.?\d+$', x):
+          return mpc(x, '0')
+      raise ValueError(f"Invalid number format: '{x}'")
+    elif isinstance(x, (mpf, mpc)): return mpc(x)
+    else: raise TypeError(f"Invalid type {type(x)} for type conversion to mpmath mpc")
+
+
 
 def dprint(message: str, min_level: int, color: Union[str, Iterable[str]], *args: Any, rewrite: bool = True) -> None:
   if not (dc >= min_level) or dc.in_debug: return
