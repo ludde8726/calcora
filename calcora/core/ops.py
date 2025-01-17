@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, overload
-from typing import Literal, TypeGuard, Union
+from typing import Callable, Dict, Literal, Optional, Tuple, TypeGuard, Union
 
 from enum import Enum, auto
+from itertools import compress
 
 from calcora.types import CalcoraNumber, RealNumberLike, NumericType, RealNumeric
 from calcora.utils import is_const_like, dprint
@@ -15,7 +16,7 @@ from calcora.core.registry import ConstantRegistry, FunctionRegistry
 from calcora.printing.printops import PrintableOp
 
 
-from mpmath import mpf, mpc, log, sin, cos, polar, sqrt
+from mpmath import mpf, mpc, log, sin, cos, polar, sqrt, fabs, atan, pi
 
 if TYPE_CHECKING:
   from mpmath.ctx_mp_python import _constant
@@ -80,10 +81,11 @@ class Const(Expr):
   def _print_latex(self) -> str: return f'{self.x}'
   
 class Constant(Expr):
-  def __init__(self, x: _constant, name: str, type_cast: bool = True) -> None: 
+  def __init__(self, x: _constant, name: str, latex_name: Optional[str] = None, type_cast: bool = True) -> None: 
     self.x = x
     self.name = name
-    super().__init__(self.x, name)
+    self.latex_name = latex_name if latex_name else name
+    super().__init__(self.x, name, latex_name)
     self.priority = 999
   
   @staticmethod
@@ -92,7 +94,7 @@ class Constant(Expr):
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x()
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return self.name
-  def _print_latex(self) -> str: return f'\\{self.name}' # Note: Works only for pi...
+  def _print_latex(self) -> str: return f'{self.latex_name}'
 
 class ComplexForm(Enum):
   Rectangular = auto()
@@ -127,15 +129,36 @@ class Complex(Expr):  # TODO: Add support for polar and exponential representati
     if self.imag != 0: raise ValueError('Cannot differentiate imaginary numbers (for now)')
     return Const(0)
   
+  _pi = Constant(pi, name='π', latex_name='\\pi')
+
+  KnownPolarCoords : Dict[Tuple[CalcoraNumber, CalcoraNumber], Callable[[], Tuple[Expr, Expr, Expr, Expr]]] = {
+    (sqrt(3)/2, 1/sqrt(2)): lambda: (Complex._pi/6, (5 * Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6)),
+    (1/sqrt(2), 1/sqrt(2)): lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4)),
+    (1/sqrt(2), sqrt(3)/2): lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3)),
+  }
+
+  def get_polar(self) -> Tuple[Numeric, Expr]:
+    r = fabs(self._eval())
+    real, imag = self.real._eval(), self.imag._eval()
+    on_axles = ((real, imag) == (1, 0), (real, imag) == (0, 1), (real, imag) == (-1, 0), (real, imag) == (0, -1))
+    if any(on_axles): return Numeric(r, skip_conversion=True), next(compress([Const(0), self._pi/2, self._pi, -(self._pi/2)], on_axles))
+    abs_real = fabs(real) / r
+    abs_imag = fabs(imag) / r
+    has_exact_angle = (abs_real, abs_imag) in self.KnownPolarCoords
+    quadrant = [1, 4, 2, 3][((real < 0) << 1) | (imag < 0)]
+    quadrant_convert_functions : Tuple[Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr]] = (lambda x: Const(x), lambda x: Const(pi - x), lambda x: Neg(Const(pi - x)), lambda x: Neg(x))
+    if has_exact_angle: return Numeric(r, skip_conversion=True), self.KnownPolarCoords[(abs_real, abs_imag)]()[quadrant]
+    else: return Numeric(r, skip_conversion=True), quadrant_convert_functions[quadrant](atan(imag/real))
+  
   def _print_repr(self) -> str:
     if self._representation == ComplexForm.Polar:
-      r, v = polar(self._eval())
-      if r == 1: return f'cos({Numeric(v, skip_conversion=True)}) + isin({Numeric(v, skip_conversion=True)})'
-      else: return f'{Numeric(r, skip_conversion=True)}(cos({Numeric(v, skip_conversion=True)}) + isin({Numeric(v, skip_conversion=True)}))'
+      r, v = self.get_polar()
+      if r == 1: return f'cos({v}) + isin({v})'
+      else: return f'{r}(cos({v}) + isin({v}))'
     elif self._representation == ComplexForm.Exponential:
-      r, v = polar(self._eval())
-      if r == 1: return f'e^{Numeric(v, skip_conversion=True)}i'
-      else: return f'{Numeric(r, skip_conversion=True)}e^{Numeric(v, skip_conversion=True)}i'
+      r, v = self.get_polar()
+      if r == 1: return f'e^{v}i'
+      else: return f'{r}e^{v}i'
     else:
       if isinstance(self.imag, Neg):
         imag = f'{self.imag.x._print_repr()}i'
@@ -150,13 +173,13 @@ class Complex(Expr):  # TODO: Add support for polar and exponential representati
   
   def _print_latex(self) -> str:
     if self._representation == ComplexForm.Polar:
-      r, v = polar(self._eval())
-      if r == 1: return f'\\cos\\left({Numeric(v, skip_conversion=True)}\\right) + i\\sin\\left({Numeric(v, skip_conversion=True)}\\right)'
-      else: return f'{Numeric(r, skip_conversion=True)}\\left(\\cos\\left({Numeric(v, skip_conversion=True)}\\right) + i\\sin\\left({Numeric(v, skip_conversion=True)}\\right)\\right)'
+      r, v = self.get_polar()
+      if r == 1: return f'\\cos\\left({v}\\right) + i\\sin\\left({v}\\right)'
+      else: return f'{r}\\left(\\cos\\left({v}\\right) + i\\sin\\left({v}\\right)\\right)'
     elif self._representation == ComplexForm.Exponential:
-      r, v = polar(self._eval())
-      if r == 1: return f'e^{{{Numeric(v, skip_conversion=True)}i}}'
-      else: return f'{Numeric(r, skip_conversion=True)}e^{{{Numeric(v, skip_conversion=True)}i}}'
+      r, v = self.get_polar()
+      if r == 1: return f'e^{{{v}i}}'
+      else: return f'{r}e^{{{v}i}}'
     else:
       if isinstance(self.imag, Neg):
         imag = f'{self.imag.x._print_latex()}i'
@@ -272,6 +295,15 @@ class Mul(Expr):
   def differentiate(self, var: Var) -> Expr:
     return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
   
+  # TODO: if one is const and one is constant no mul sign
+  #       if both are constant no mul sign
+  #       if one is const and one is var no mul sign
+  #       if both is var no mul sign
+  #       if one is constant and one is var no mul sign
+  #       if one is const, constant or var and other is lower priority op, no mul sign
+  #       if one is const, constant or var and other is op with paren no mul sign
+  #       if they are not both const then no mul sign is needed? Const with neg also counts
+
   def _print_repr(self) -> str:
     x = self.x._print_repr()
     y = self.y._print_repr()
