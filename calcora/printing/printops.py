@@ -1,20 +1,14 @@
 from __future__ import annotations
 
-from typing import Callable, Type
-from typing import TYPE_CHECKING
-
 from calcora.globals import BaseOps
+from calcora.types import CalcoraNumber
 
-from calcora.core.registry import FunctionRegistry
+from mpmath import log, pi
 
-if TYPE_CHECKING:
-  from calcora.core.expression import Expr
+from calcora.core.expression import Expr
+from calcora.core.ops import Add, Mul, Neg
 
-Neg : Callable[[], Type[Expr]] = lambda: FunctionRegistry.get('Neg')
-Mul : Callable[[], Type[Expr]] = lambda: FunctionRegistry.get('Mul')
-Add : Callable[[], Type[Expr]] = lambda: FunctionRegistry.get('Add')
-
-class PrintableOp:
+class PrintableOp(Expr):
   def __init__(self, *args: Expr, name: str) -> None:
     self.args = args
     self.fxn = BaseOps.NoOp
@@ -28,7 +22,7 @@ class PrintableOp:
   def __repr__(self) -> str: return self._print_repr()
 
 class PrintableSub(PrintableOp): 
-  def __init__(self, x: Expr, y: Expr, type_cast: bool = False) -> None:
+  def __init__(self, x: Expr, y: Expr, type_cast: bool = True) -> None:
     self.x = x
     self.y = y
     self.priority = 1
@@ -37,19 +31,22 @@ class PrintableSub(PrintableOp):
   def _print_repr(self) -> str:
     x = self.x._print_repr()
     y = self.y._print_repr()
-    if self.x.priority < self.priority and not isinstance(self.x, Neg()): x = f'({x})'
-    if self.y.priority < self.priority or isinstance(self.y, PrintableSub) or isinstance(self.y, Neg()) or isinstance(self.y, Add()): y = f'({y})'
+    if self.x.priority < self.priority and not isinstance(self.x, Neg): x = f'({x})'
+    if self.y.priority < self.priority or isinstance(self.y, PrintableSub) or isinstance(self.y, Neg) or isinstance(self.y, Add): y = f'({y})'
     return f'{x} - {y}'
   
   def _print_latex(self) -> str:
     x = self.x._print_latex()
     y = self.y._print_latex()
-    if self.x.priority < self.priority and not isinstance(self.x, Neg()): x = f'\\left({x}\\right)'
-    if self.y.priority < self.priority or isinstance(self.y, PrintableSub) or isinstance(self.y, Neg()) or isinstance(self.y, Add()): y = f'\\left({y}\\right)'
+    if self.x.priority < self.priority and not isinstance(self.x, Neg): x = f'\\left({x}\\right)'
+    if self.y.priority < self.priority or isinstance(self.y, PrintableSub) or isinstance(self.y, Neg) or isinstance(self.y, Add): y = f'\\left({y}\\right)'
     return f'{x} - {y}'
+  
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return self.x._eval(**kwargs) + (-self.y._eval(**kwargs))
 
 class PrintableDiv(PrintableOp):
-  def __init__(self, x: Expr, y: Expr, type_cast: bool = False) -> None:
+  def __init__(self, x: Expr, y: Expr, type_cast: bool = True) -> None:
     self.x = x
     self.y = y
     self.priority = 2
@@ -59,7 +56,7 @@ class PrintableDiv(PrintableOp):
     x = self.x._print_repr()
     y = self.y._print_repr()
     if self.x.priority < self.priority or isinstance(self.x, PrintableDiv): x = f'({x})'
-    if self.y.priority < self.priority or isinstance(self.y, PrintableDiv) or isinstance(self.y, Mul()): y = f'({y})'
+    if self.y.priority < self.priority or isinstance(self.y, PrintableDiv) or isinstance(self.y, Mul): y = f'({y})'
     return f'{x}/{y}'
   
   def _print_latex(self) -> str:
@@ -67,8 +64,11 @@ class PrintableDiv(PrintableOp):
     y = self.y._print_latex()
     return f'\\frac{{{x}}}{{{y}}}'
   
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return self.x._eval(**kwargs) * (self.y._eval(**kwargs) ** (-1))
+  
 class PrintableLn(PrintableOp):
-  def __init__(self, x: Expr, type_cast: bool = False) -> None:
+  def __init__(self, x: Expr, type_cast: bool = True) -> None:
     self.x = x
     self.priority = 4
     super().__init__(x, name='Ln')
@@ -80,3 +80,23 @@ class PrintableLn(PrintableOp):
   def _print_latex(self) -> str:
     x = self.x._print_latex()
     return f'\\ln\\left({x}\\right)'
+  
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return log(self.x._eval(**kwargs), pi)
+  
+class PrintableSqrt(PrintableOp):
+  def __init__(self, x: Expr, type_cast: bool = True) -> None:
+    self.x = x
+    self.priority = 4
+    super().__init__(x, name='Sqrt')
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    return f'sqrt({x})'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    return f'\\sqrt{{{x}}}'
+  
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return self.x._eval(**kwargs) ** 0.5

@@ -1,4 +1,4 @@
-from calcora.core.ops import Constant, Const, Complex, Neg
+from calcora.core.ops import Complex, Const, Constant, Neg
 from calcora.core.registry import ConstantRegistry
 
 from mpmath import mp

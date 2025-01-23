@@ -72,6 +72,12 @@ class Numeric:
   def __float__(self) -> float:
     return float(self.value.real)
   
+  def __int__(self) -> int:
+    return int(self.value.real)
+  
+  def __complex__(self) -> complex:
+    return complex(self.value.real, self.value.imag)
+  
   def get_dps(self, other: Union[NumericType, Numeric]) -> int:
     if isinstance(other, Numeric): return max(self.precision, other.precision)
     return self.precision
@@ -94,8 +100,6 @@ class Numeric:
     with workdps(work_dps := self.get_dps(other)): return Numeric(self.value * Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
   def __truediv__(self, other: Union[NumericType, Numeric]) -> Numeric:
     with workdps(work_dps := self.get_dps(other)): return Numeric(self.value / Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
-  def __floordiv__(self, other: Union[NumericType, Numeric]) -> Numeric:
-    with workdps(work_dps := self.get_dps(other)): return Numeric(self.value // Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
   def __pow__(self, other: Union[NumericType, Numeric]) -> Numeric:
     with workdps(work_dps := self.get_dps(other)): return Numeric(self.value ** Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
 
@@ -107,7 +111,5 @@ class Numeric:
     with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value * self.value, precision=work_dps, skip_conversion=True)
   def __rtruediv__(self, other: Union[NumericType, Numeric]) -> Numeric:
     with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value / self.value, precision=work_dps, skip_conversion=True)
-  def __rfloordiv__(self, other: Union[NumericType, Numeric]) -> Numeric:
-    with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value // self.value, precision=work_dps, skip_conversion=True)
   def __rpow__(self, other: Union[NumericType, Numeric]) -> Numeric:
     with workdps(work_dps := self.get_dps(other)): return Numeric(Numeric.numeric_cast(other).value ** self.value, precision=work_dps, skip_conversion=True)

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
   from calcora.core.ops import Complex, Const, Var
   from calcora.core.ops import Add, Mul, Neg, Log, Pow
   from calcora.core.ops import Sin, Cos
-  from calcora.core.ops import Div, Sub, Ln
+  from calcora.core.ops import Div, Sub, Ln, Sqrt
   from calcora.core.ops import AnyOp
 
 class LazyOp(Generic[T, P]):
@@ -44,5 +44,6 @@ LazyCos = LazyOp['Cos', 'Cos._init'](lambda: FunctionRegistry.get('Cos'))       
 LazyDiv = LazyOp['Div', 'Div._init'](lambda: FunctionRegistry.get('Div'))             # type: ignore
 LazySub = LazyOp['Sub', 'Sub._init'](lambda: FunctionRegistry.get('Sub'))             # type: ignore
 LazyLn = LazyOp['Ln', 'Ln._init'](lambda: FunctionRegistry.get('Ln'))                # type: ignore
+LazyLn = LazyOp['Sqrt', 'Sqrt._init'](lambda: FunctionRegistry.get('Sqrt'))         # type: ignore       
 
 LazyAnyOp = LazyOp['AnyOp', 'AnyOp._init'](lambda: FunctionRegistry.get('AnyOp'))       # type: ignore

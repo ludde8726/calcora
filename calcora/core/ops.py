@@ -6,30 +6,26 @@ from typing import Callable, Dict, Literal, Optional, Tuple, TypeGuard, Union
 from enum import Enum, auto
 from itertools import compress
 
-from calcora.types import CalcoraNumber, RealNumberLike, NumericType, RealNumeric
+from calcora.types import CalcoraNumber, NumericType, RealNumeric
 from calcora.utils import is_const_like, dprint
 
 from calcora.core.expression import Expr
 from calcora.core.numeric import Numeric
 from calcora.core.registry import ConstantRegistry, FunctionRegistry
 
-from calcora.printing.printops import PrintableOp
-
-
-from mpmath import mpf, mpc, log, sin, cos, polar, sqrt, fabs, atan, pi
+from mpmath import mpf, mpc, log, sin, cos, fabs, atan, pi, almosteq, nint
 
 if TYPE_CHECKING:
   from mpmath.ctx_mp_python import _constant
 
-ExprArgTypes = Union[NumericType, Numeric, Expr]
+type ExprArgTypes = Union[NumericType, Numeric, Expr]
 
 def should_not_numeric_cast(x: Union[Numeric, RealNumeric], should_c: bool) -> TypeGuard[Numeric]: return not should_c
 def should_not_cast(x: ExprArgTypes, should_c: bool) -> TypeGuard[Expr]: return not should_c
 
 # Note: There should proboably be some sort of argument on the ops that specify if typecast should be called
-def typecast(x: Union[NumericType, Numeric, Expr, PrintableOp]) -> Expr:
+def typecast(x: Union[NumericType, Numeric, Expr]) -> Expr:
   if isinstance(x, Expr): return x
-  elif isinstance(x, PrintableOp): return x # type: ignore
   elif isinstance(x, Numeric): return Const(x) if x >= 0 else Neg(Const(abs(x)))
   elif isinstance(x, (float, int)): 
     n = Numeric(x)
@@ -58,6 +54,7 @@ class Var(Expr):
   
   def _print_repr(self) -> str: return f'{self.name}'
   def _print_latex(self) -> str: return f'{self.name}'
+FunctionRegistry.register(Var)
   
 class Const(Expr):
   @overload
@@ -79,6 +76,7 @@ class Const(Expr):
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return f'{self.x}'
   def _print_latex(self) -> str: return f'{self.x}'
+FunctionRegistry.register(Const)
   
 class Constant(Expr):
   def __init__(self, x: _constant, name: str, latex_name: Optional[str] = None, type_cast: bool = True) -> None: 
@@ -95,13 +93,344 @@ class Constant(Expr):
   def differentiate(self, var: Var) -> Expr: return Const(0)
   def _print_repr(self) -> str: return self.name
   def _print_latex(self) -> str: return f'{self.latex_name}'
+FunctionRegistry.register(Constant)
 
 class ComplexForm(Enum):
   Rectangular = auto()
   Polar = auto()
   Exponential = auto()
 
-class Complex(Expr):  # TODO: Add support for polar and exponential representation, aswell as fix printing order.
+class Add(Expr):
+  @overload
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    if should_not_cast(y, type_cast): self.y = y
+    else: self.y = typecast(y)
+    super().__init__(self.x, self.y, commutative=True)
+    self.priority = 1
+
+  @staticmethod
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
+
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return self.x._eval(**kwargs) + self.y._eval(**kwargs)
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Add(self.x.differentiate(var), self.y.differentiate(var))
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    y = self.y._print_repr()
+    if self.x.priority < self.priority: x = f'({x})'
+    if self.y.priority < self.priority: y = f'({y})'
+    return f'{x} + {y}'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    y = self.y._print_latex()
+    if self.x.priority < self.priority: x = f'\\left({x}\\right)'
+    if self.y.priority < self.priority: y = f'\\left({y}\\right)'
+    return f'{x} + {y}'
+FunctionRegistry.register(Add)
+
+class Neg(Expr):
+  @overload
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    super().__init__(self.x)
+    self.priority = 0
+
+  @staticmethod
+  def _init(x: ExprArgTypes) -> None: pass
+
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return -self.x._eval(**kwargs)
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Neg(self.x.differentiate(var))
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    if not (isinstance(self.x, (Const, Var, Constant))): x = f'({x})'
+    return f'-{x}'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    if not (isinstance(self.x, (Const, Var, Constant))): x = f'\\left({x}\\right)'
+    return f'-{x}'
+FunctionRegistry.register(Neg)
+  
+class Mul(Expr):
+  @overload
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    if should_not_cast(y, type_cast): self.y = y
+    else: self.y = typecast(y)
+    super().__init__(self.x, self.y, commutative=True)
+    self.priority = 2
+  
+  @staticmethod
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
+
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return self.x._eval(**kwargs) * self.y._eval(**kwargs)
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
+  
+  # TODO: if one is const and one is constant no mul sign
+  #       if both are constant no mul sign
+  #       if one is const and one is var no mul sign
+  #       if both is var no mul sign
+  #       if one is constant and one is var no mul sign
+  #       if one is const, constant or var and other is lower priority op, no mul sign
+  #       if one is const, constant or var and other is op with paren no mul sign
+  #       if they are not both const then no mul sign is needed? Const with neg also counts
+
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    y = self.y._print_repr()
+    if self.x.priority < self.priority: x = f'({x})'
+    if self.y.priority < self.priority: y = f'({y})'
+    return f'{x}*{y}'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    y = self.y._print_latex()
+    if self.x.priority < self.priority: x = f'\\left({x}\\right)'
+    if self.y.priority < self.priority: y = f'\\left({y}\\right)'
+    return f'{x} \\cdot {y}'
+FunctionRegistry.register(Mul)
+
+class Log(Expr):
+  @overload
+  def __init__(self, x: ExprArgTypes, base: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, base: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, base: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    if should_not_cast(base, type_cast): self.base = base
+    else: self.base = typecast(base)
+    super().__init__(self.x, self.base)
+    self.priority = 4
+  
+  @staticmethod
+  def _init(x: ExprArgTypes, base: ExprArgTypes) -> None: pass
+  
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
+    return log(self.x._eval(**kwargs), self.base._eval(**kwargs))
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Div(
+              Sub(
+                Div(Mul(self.x.differentiate(var), Ln(self.base)), self.x), 
+                Div(Mul(self.base.differentiate(var), Ln(self.x)), self.base)), 
+              Pow(Ln(self.base), Const(2))
+            )
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    base = self.base._print_repr()
+    return f'log_{base}({x})'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    base = self.base._print_latex()
+    return f'\\log_{{{base}}}\\left({x}\\right)'
+FunctionRegistry.register(Log)
+
+class Pow(Expr):
+  @overload
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    if should_not_cast(y, type_cast): self.y = y
+    else: self.y = typecast(y)
+    super().__init__(self.x, self.y)
+    self.priority = 3
+  
+  @staticmethod
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
+
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Mul(Pow(self.x, self.y), Add(Mul(self.y, Div(self.x.differentiate(var), self.x)), Mul(self.y.differentiate(var), Ln(self.x))))
+    return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
+               Mul(Mul(Pow(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    y = self.y._print_repr()
+    if self.x.priority < self.priority or isinstance(self.x, Pow): x = f'({x})'
+    if self.y.priority < self.priority or isinstance(self.y, Pow): y = f'({y})'
+    return f'{x}^{y}'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    y = self.y._print_latex()
+    if self.x.priority < self.priority or isinstance(self.x, Pow): x = f'\\left({x}\\right)'
+    if (self.y.priority < self.priority or isinstance(self.y, Pow)) and not isinstance(self.y, Neg): y = f'\\left({y}\\right)'
+    return f'{{{x}}}^{{{y}}}'
+FunctionRegistry.register(Pow)
+
+class Sin(Expr):
+  @overload
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    super().__init__(self.x)
+    self.priority = 4
+  
+  @staticmethod
+  def _init(x: ExprArgTypes) -> None: pass
+  
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return sin(self.x._eval(**kwargs))
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Cos(self.x) * self.x.differentiate(var)
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    return f'sin({x})'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    return f'\\sin\\left({x}\\right)'
+FunctionRegistry.register(Sin)
+  
+class Cos(Expr):
+  @overload
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
+  @overload
+  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
+
+  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
+    if should_not_cast(x, type_cast): self.x = x
+    else: self.x = typecast(x)
+    super().__init__(self.x)
+    self.priority = 4
+  
+  @staticmethod
+  def _init(x: ExprArgTypes) -> None: pass
+  
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    return cos(self.x._eval(**kwargs))
+  
+  def differentiate(self, var: Var) -> Expr:
+    return Neg(Sin(self.x)) * self.x.differentiate(var)
+  
+  def _print_repr(self) -> str:
+    x = self.x._print_repr()
+    return f'cos({x})'
+  
+  def _print_latex(self) -> str:
+    x = self.x._print_latex()
+    return f'\\cos\\left({x}\\right)'
+FunctionRegistry.register(Cos)
+
+class Div(Expr):
+  @overload
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
+  @overload
+  def __new__(cls, x: Expr, y: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
+
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
+    if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
+    return Mul(x, Pow(y, Neg(Const(1))))
+  
+  @staticmethod
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
+FunctionRegistry.register(Div)
+  
+class Sub(Expr):
+  @overload
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
+  @overload
+  def __new__(cls, x: Expr, y: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
+
+  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
+    return Add(x, Neg(y))
+  
+  @staticmethod
+  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
+FunctionRegistry.register(Sub)
+  
+class Ln(Expr):
+  @overload
+  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
+  @overload
+  def __new__(cls, x: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
+
+  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
+    return Log(x, ConstantRegistry.get('e'))
+  
+  @staticmethod
+  def _init(x: ExprArgTypes) -> None: pass
+FunctionRegistry.register(Ln)
+
+class Sqrt(Expr):
+  @overload
+  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
+  @overload
+  def __new__(cls, x: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
+
+  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
+    return Pow(x, Const(0.5))
+  
+  @staticmethod
+  def _init(x: ExprArgTypes) -> None: pass
+FunctionRegistry.register(Sqrt)
+
+class AnyOp(Expr):
+  def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False, type_cast: Literal[True, False] = True) -> None:
+    self.match = match
+    self.name = name
+    self.assert_const_like = assert_const_like
+    super().__init__()
+  
+  @staticmethod
+  def _init(match: bool = False, name: str = "x", assert_const_like: bool = False) -> None: pass
+
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
+    print('Warning! AnyOp cannot be evaluated, returning 0')
+    return 0
+  
+  def _print_repr(self) -> str:
+    return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
+  
+  def _print_latex(self) -> str:
+    return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
+FunctionRegistry.register(AnyOp)
+  
+class Complex(Expr):
   @overload
   def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True] = ..., representation: ComplexForm = ComplexForm.Rectangular) -> None: ...
   @overload
@@ -130,25 +459,37 @@ class Complex(Expr):  # TODO: Add support for polar and exponential representati
     return Const(0)
   
   _pi = Constant(pi, name='π', latex_name='\\pi')
+  # KnownPolarCoords = (
+  #   ((1/sqrt(2), 1/sqrt(2)), lambda: (Complex._pi/6, (5 * Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6))),
+  #   ((mpf(1/2), sqrt(3)/2), lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4))),
+  #   ((mpf(1/2), sqrt(3)/2), lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3)))
+  # ),
 
-  KnownPolarCoords : Dict[Tuple[CalcoraNumber, CalcoraNumber], Callable[[], Tuple[Expr, Expr, Expr, Expr]]] = {
-    (sqrt(3)/2, 1/sqrt(2)): lambda: (Complex._pi/6, (5 * Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6)),
-    (1/sqrt(2), 1/sqrt(2)): lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4)),
-    (1/sqrt(2), sqrt(3)/2): lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3)),
-  }
-
+  KnownPolars : Tuple[
+    Tuple[Tuple[Expr, Expr], Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Tuple[Expr, Expr], Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Tuple[Expr, Expr], Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    ] = (
+    ((Sqrt(3)/2, Const(1)/Const(2)), lambda: (Complex._pi/6, (5 * Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6))),
+    ((1/Sqrt(2), 1/Sqrt(2)), lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4))),
+    ((Const(1)/Const(2), Sqrt(3)/2), lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3)))
+  )
+  
   def get_polar(self) -> Tuple[Numeric, Expr]:
-    r = fabs(self._eval())
     real, imag = self.real._eval(), self.imag._eval()
-    on_axles = ((real, imag) == (1, 0), (real, imag) == (0, 1), (real, imag) == (-1, 0), (real, imag) == (0, -1))
+    r = fabs(self._eval())
+    ratio_real, ratio_imag = real / r, imag / r
+    if almosteq(r, nint(r)): r = nint(r)
+    # Note: Might be a way faster way to do this, don't know how efficient compress is etc.
+    # Note 2: Could possibly be faster to just store ratio inside of known polars and then check those
+    on_axles = ((ratio_real, ratio_imag) == (1, 0), (ratio_real, ratio_imag) == (0, 1), (ratio_real, ratio_imag) == (-1, 0), (ratio_real, ratio_imag) == (0, -1))
     if any(on_axles): return Numeric(r, skip_conversion=True), next(compress([Const(0), self._pi/2, self._pi, -(self._pi/2)], on_axles))
-    abs_real = fabs(real) / r
-    abs_imag = fabs(imag) / r
-    has_exact_angle = (abs_real, abs_imag) in self.KnownPolarCoords
+    abs_real, abs_imag = fabs(real) / r, fabs(imag) / r
     quadrant = [1, 4, 2, 3][((real < 0) << 1) | (imag < 0)]
     quadrant_convert_functions : Tuple[Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr]] = (lambda x: Const(x), lambda x: Const(pi - x), lambda x: Neg(Const(pi - x)), lambda x: Neg(x))
-    if has_exact_angle: return Numeric(r, skip_conversion=True), self.KnownPolarCoords[(abs_real, abs_imag)]()[quadrant]
-    else: return Numeric(r, skip_conversion=True), quadrant_convert_functions[quadrant](atan(imag/real))
+    has_exact_angle = next((coordinate_fxn()[quadrant-1] for xy, coordinate_fxn in self.KnownPolars if almosteq(abs_real, xy[0]._eval()) and almosteq(abs_imag, xy[1]._eval())), None)
+    if has_exact_angle: return Numeric(r, skip_conversion=True), has_exact_angle
+    else: return Numeric(r, skip_conversion=True), quadrant_convert_functions[quadrant-1](atan(abs_imag/abs_real))
   
   def _print_repr(self) -> str:
     if self._representation == ComplexForm.Polar:
@@ -203,329 +544,7 @@ class Complex(Expr):  # TODO: Add support for polar and exponential representati
     elif representation == ComplexForm.Rectangular and self.real and self.imag: self.priority = 1
     elif representation == ComplexForm.Rectangular and self.imag: self.priority = 999
     elif representation == ComplexForm.Rectangular and self.real: self.priority = 999
-
-class Add(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    if should_not_cast(y, type_cast): self.y = y
-    else: self.y = typecast(y)
-    super().__init__(self.x, self.y, commutative=True)
-    self.priority = 1
-
-  @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
-
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return self.x._eval(**kwargs) + self.y._eval(**kwargs)
-  
-  def differentiate(self, var: Var) -> Expr:
-    return Add(self.x.differentiate(var), self.y.differentiate(var))
-  
-  def _print_repr(self) -> str:
-    x = self.x._print_repr()
-    y = self.y._print_repr()
-    if self.x.priority < self.priority: x = f'({x})'
-    if self.y.priority < self.priority: y = f'({y})'
-    return f'{x} + {y}'
-  
-  def _print_latex(self) -> str:
-    x = self.x._print_latex()
-    y = self.y._print_latex()
-    if self.x.priority < self.priority: x = f'\\left({x}\\right)'
-    if self.y.priority < self.priority: y = f'\\left({y}\\right)'
-    return f'{x} + {y}'
-
-class Neg(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    super().__init__(self.x)
-    self.priority = 0
-
-  @staticmethod
-  def _init(x: ExprArgTypes) -> None: pass
-
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return -self.x._eval(**kwargs)
-  
-  def differentiate(self, var: Var) -> Expr:
-    return Neg(self.x.differentiate(var))
-  
-  def _print_repr(self) -> str:
-    x = self.x._print_repr()
-    if not (isinstance(self.x, (Const, Var, Constant))): x = f'({x})'
-    return f'-{x}'
-  
-  def _print_latex(self) -> str:
-    x = self.x._print_latex()
-    if not (isinstance(self.x, (Const, Var, Constant))): x = f'\\left({x}\\right)'
-    return f'-{x}'
-  
-class Mul(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    if should_not_cast(y, type_cast): self.y = y
-    else: self.y = typecast(y)
-    super().__init__(self.x, self.y, commutative=True)
-    self.priority = 2
-  
-  @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
-
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return self.x._eval(**kwargs) * self.y._eval(**kwargs)
-  
-  def differentiate(self, var: Var) -> Expr:
-    return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
-  
-  # TODO: if one is const and one is constant no mul sign
-  #       if both are constant no mul sign
-  #       if one is const and one is var no mul sign
-  #       if both is var no mul sign
-  #       if one is constant and one is var no mul sign
-  #       if one is const, constant or var and other is lower priority op, no mul sign
-  #       if one is const, constant or var and other is op with paren no mul sign
-  #       if they are not both const then no mul sign is needed? Const with neg also counts
-
-  def _print_repr(self) -> str:
-    x = self.x._print_repr()
-    y = self.y._print_repr()
-    if self.x.priority < self.priority: x = f'({x})'
-    if self.y.priority < self.priority: y = f'({y})'
-    return f'{x}*{y}'
-  
-  def _print_latex(self) -> str:
-    x = self.x._print_latex()
-    y = self.y._print_latex()
-    if self.x.priority < self.priority: x = f'\\left({x}\\right)'
-    if self.y.priority < self.priority: y = f'\\left({y}\\right)'
-    return f'{x} \\cdot {y}'
-
-class Log(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, base: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, base: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, base: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    if should_not_cast(base, type_cast): self.base = base
-    else: self.base = typecast(base)
-    super().__init__(self.x, self.base)
-    self.priority = 4
-  
-  @staticmethod
-  def _init(x: ExprArgTypes, base: ExprArgTypes) -> None: pass
-  
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
-    return log(self.x._eval(**kwargs), self.base._eval(**kwargs))
-  
-  def differentiate(self, var: Var) -> Expr:
-    return Div(
-              Sub(
-                Div(Mul(self.x.differentiate(var), Ln(self.base)), self.x), 
-                Div(Mul(self.base.differentiate(var), Ln(self.x)), self.base)), 
-              Pow(Ln(self.base), Const(2))
-            )
-  
-  def _print_repr(self) -> str:
-    x = self.x._print_repr()
-    base = self.base._print_repr()
-    return f'log_{base}({x})'
-  
-  def _print_latex(self) -> str:
-    x = self.x._print_latex()
-    base = self.base._print_latex()
-    return f'\\log_{{{base}}}\\left({x}\\right)'
-
-class Pow(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    if should_not_cast(y, type_cast): self.y = y
-    else: self.y = typecast(y)
-    super().__init__(self.x, self.y)
-    self.priority = 3
-  
-  @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
-
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
-  
-  def differentiate(self, var: Var) -> Expr:
-    return Mul(Pow(self.x, self.y), Add(Mul(self.y, Div(self.x.differentiate(var), self.x)), Mul(self.y.differentiate(var), Ln(self.x))))
-    return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
-               Mul(Mul(Pow(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
-  
-  def _print_repr(self) -> str:
-    x = self.x._print_repr()
-    y = self.y._print_repr()
-    if self.x.priority < self.priority or isinstance(self.x, Pow): x = f'({x})'
-    if self.y.priority < self.priority or isinstance(self.y, Pow): y = f'({y})'
-    return f'{x}^{y}'
-  
-  def _print_latex(self) -> str:
-    x = self.x._print_latex()
-    y = self.y._print_latex()
-    if self.x.priority < self.priority or isinstance(self.x, Pow): x = f'\\left({x}\\right)'
-    if (self.y.priority < self.priority or isinstance(self.y, Pow)) and not isinstance(self.y, Neg): y = f'\\left({y}\\right)'
-    return f'{{{x}}}^{{{y}}}'
-
-class Sin(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    super().__init__(self.x)
-    self.priority = 4
-  
-  @staticmethod
-  def _init(x: ExprArgTypes) -> None: pass
-  
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return sin(self.x._eval(**kwargs))
-  
-  def differentiate(self, var: Var) -> Expr:
-    return Cos(self.x) * self.x.differentiate(var)
-  
-  def _print_repr(self) -> str:
-    x = self.x._print_repr()
-    return f'sin({x})'
-  
-  def _print_latex(self) -> str:
-    x = self.x._print_latex()
-    return f'\\sin\\left({x}\\right)'
-  
-class Cos(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    super().__init__(self.x)
-    self.priority = 4
-  
-  @staticmethod
-  def _init(x: ExprArgTypes) -> None: pass
-  
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    return cos(self.x._eval(**kwargs))
-  
-  def differentiate(self, var: Var) -> Expr:
-    return Neg(Sin(self.x)) * self.x.differentiate(var)
-  
-  def _print_repr(self) -> str:
-    x = self.x._print_repr()
-    return f'cos({x})'
-  
-  def _print_latex(self) -> str:
-    x = self.x._print_latex()
-    return f'\\cos\\left({x}\\right)'
-
-class Div(Expr):
-  @overload
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
-  @overload
-  def __new__(cls, x: Expr, y: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
-
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
-    if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
-    return Mul(x, Pow(y, Neg(Const(1))))
-  
-  @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
-  
-class Sub(Expr):
-  @overload
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
-  @overload
-  def __new__(cls, x: Expr, y: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
-
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
-    return Add(x, Neg(y))
-  
-  @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
-  
-class Ln(Expr):
-  @overload
-  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
-  @overload
-  def __new__(cls, x: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
-
-  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
-    return Log(x, ConstantRegistry.get('e'))
-  
-  @staticmethod
-  def _init(x: ExprArgTypes) -> None: pass
-
-class AnyOp(Expr):
-  def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False, type_cast: Literal[True, False] = True) -> None:
-    self.match = match
-    self.name = name
-    self.assert_const_like = assert_const_like
-    super().__init__()
-  
-  @staticmethod
-  def _init(match: bool = False, name: str = "x", assert_const_like: bool = False) -> None: pass
-
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    print('Warning! AnyOp cannot be evaluated, returning 0')
-    return 0
-  
-  def _print_repr(self) -> str:
-    return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
-  
-  def _print_latex(self) -> str:
-    return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
-
-FunctionRegistry.register(Var)
-FunctionRegistry.register(Const)
-FunctionRegistry.register(Constant)
 FunctionRegistry.register(Complex)
-FunctionRegistry.register(Add)
-FunctionRegistry.register(Neg)
-FunctionRegistry.register(Mul)
-FunctionRegistry.register(Log)
-FunctionRegistry.register(Pow)
-FunctionRegistry.register(Sin)
-FunctionRegistry.register(Cos)
-FunctionRegistry.register(AnyOp)
-
-FunctionRegistry.register(Div)
-FunctionRegistry.register(Sub)
-FunctionRegistry.register(Ln)
 
 if __name__ == "__main__":
   x = Var('x')

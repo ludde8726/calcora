@@ -11,8 +11,6 @@ from calcora.core.number import Number
 from calcora.core.numeric import Numeric
 from calcora.core.registry import FunctionRegistry
 
-from calcora.printing.printing import Printer
-
 from calcora.utils import dprint
 
 from mpmath import mpc, mpf
@@ -22,6 +20,7 @@ if TYPE_CHECKING:
 
 class Expr:
   _finalizer_refs : set[weakref.finalize] = set() # Static sets of all finalizers to make sure they don't get garbage collected before instance is deleted.
+  _initialized_printing = False
 
   def __init__(self, *args: Any, commutative: bool = False, **kwargs: Any) -> None:
     self.args: Tuple[Expr, ...] = args
@@ -84,11 +83,10 @@ class Expr:
     dprint(f'Evaluating $ -> $', 1, 'green', self, result)
     return result
   
-  def _eval(self, **kwargs: Expr) -> CalcoraNumber: raise NotImplementedError()
+  def _eval(self, **kwargs: Expr) -> CalcoraNumber: raise NotImplementedError(f"Op {self.__class__.__name__} does not implement the eval method.")
 
-  def _print_repr(self) -> str: raise NotImplementedError()
-
-  def _print_latex(self) -> str: raise NotImplementedError()
-
-  def __repr__(self) -> str: return Printer._print(self) 
+  def _print_self(self) -> str: raise NotImplementedError("Printing has not been initialized, please import calcora.printing.printing to initialize the printer.")
+  def _print_repr(self) -> str: raise NotImplementedError(f"Op {self.__class__.__name__} has no regular print implementation.")
+  def _print_latex(self) -> str: raise NotImplementedError(f"Op {self.__class__.__name__} has no latex print implementation.")
+  def __repr__(self) -> str: return self._print_self() #Printer._print(self) 
   def __str__(self) -> str: return repr(self)
