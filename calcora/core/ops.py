@@ -459,35 +459,42 @@ class Complex(Expr):
     return Const(0)
   
   _pi = Constant(pi, name='π', latex_name='\\pi')
-  # KnownPolarCoords = (
-  #   ((1/sqrt(2), 1/sqrt(2)), lambda: (Complex._pi/6, (5 * Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6))),
-  #   ((mpf(1/2), sqrt(3)/2), lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4))),
-  #   ((mpf(1/2), sqrt(3)/2), lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3)))
-  # ),
-
-  KnownPolars : Tuple[
-    Tuple[Tuple[Expr, Expr], Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
-    Tuple[Tuple[Expr, Expr], Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
-    Tuple[Tuple[Expr, Expr], Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
-    ] = (
-    ((Sqrt(3)/2, Const(1)/Const(2)), lambda: (Complex._pi/6, (5 * Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6))),
-    ((1/Sqrt(2), 1/Sqrt(2)), lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4))),
-    ((Const(1)/Const(2), Sqrt(3)/2), lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3)))
+  KnownPolarsRatio : Tuple[
+    Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+    Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
+  ] = (
+    (2 - Sqrt(3), lambda: (Complex._pi/12, (11*Complex._pi)/12, -((11*Complex._pi)/12), -(Complex._pi/12))),
+    (Sqrt(3-2*Sqrt(2)), lambda: (Complex._pi/8, (7*Complex._pi)/8, -((7*Complex._pi)/8), -(Complex._pi/8))),
+    (1/Sqrt(3), lambda: (Complex._pi/6, (5*Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6))),
+    (Sqrt(5 - 2*Sqrt(5)), lambda: (Complex._pi/5, (4 * Complex._pi)/5, -((4*Complex._pi)/5), -(Complex._pi/5))),
+    (Const(1), lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4))),
+    (Sqrt(3), lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3))),
+    (Sqrt(5 + 2*Sqrt(5)), lambda: ((2*Complex._pi)/5, (3*Complex._pi)/5, -((3*Complex._pi)/5), -((2*Complex._pi)/5))),
+    (2 + Sqrt(3), lambda: ((5*Complex._pi)/12, (7*Complex._pi)/12, -((7*Complex._pi)/12), -((5*Complex._pi)/12))),
   )
-  
+
   def get_polar(self) -> Tuple[Numeric, Expr]:
     real, imag = self.real._eval(), self.imag._eval()
     r = fabs(self._eval())
-    ratio_real, ratio_imag = real / r, imag / r
     if almosteq(r, nint(r)): r = nint(r)
-    # Note: Might be a way faster way to do this, don't know how efficient compress is etc.
-    # Note 2: Could possibly be faster to just store ratio inside of known polars and then check those
-    on_axles = ((ratio_real, ratio_imag) == (1, 0), (ratio_real, ratio_imag) == (0, 1), (ratio_real, ratio_imag) == (-1, 0), (ratio_real, ratio_imag) == (0, -1))
-    if any(on_axles): return Numeric(r, skip_conversion=True), next(compress([Const(0), self._pi/2, self._pi, -(self._pi/2)], on_axles))
+    ratio_real, ratio_imag = real / r, imag / r
+    on_axles = (almosteq(ratio_real, 1) and almosteq(ratio_imag, 0)) * 1 or \
+               (almosteq(ratio_real, 0) and almosteq(ratio_imag, 1)) * 2 or \
+               (almosteq(ratio_real, -1) and almosteq(ratio_imag, 0)) * 3 or \
+               (almosteq(ratio_real, 0) and almosteq(ratio_imag, -1)) * 4
+    
+    if on_axles: return Numeric(r, skip_conversion=True), [Const(0), self._pi/2, self._pi, -(self._pi/2)][on_axles-1]
     abs_real, abs_imag = fabs(real) / r, fabs(imag) / r
     quadrant = [1, 4, 2, 3][((real < 0) << 1) | (imag < 0)]
     quadrant_convert_functions : Tuple[Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr]] = (lambda x: Const(x), lambda x: Const(pi - x), lambda x: Neg(Const(pi - x)), lambda x: Neg(x))
-    has_exact_angle = next((coordinate_fxn()[quadrant-1] for xy, coordinate_fxn in self.KnownPolars if almosteq(abs_real, xy[0]._eval()) and almosteq(abs_imag, xy[1]._eval())), None)
+    ratio = abs_imag/abs_real
+    has_exact_angle = next((coordinate_fxn()[quadrant-1] for tan_value, coordinate_fxn in self.KnownPolarsRatio if almosteq(ratio, tan_value._eval())), None)
     if has_exact_angle: return Numeric(r, skip_conversion=True), has_exact_angle
     else: return Numeric(r, skip_conversion=True), quadrant_convert_functions[quadrant-1](atan(abs_imag/abs_real))
   
