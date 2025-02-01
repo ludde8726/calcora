@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, overload
-from typing import Callable, Dict, Literal, Optional, Tuple, TypeGuard, Union
+from typing import Callable, Literal, Optional, Tuple, TypeGuard, Union
 
 from enum import Enum, auto
-from itertools import compress
 
 from calcora.types import CalcoraNumber, NumericType, RealNumeric
 from calcora.utils import is_const_like, dprint
@@ -55,7 +54,7 @@ class Var(Expr):
   def _print_repr(self) -> str: return f'{self.name}'
   def _print_latex(self) -> str: return f'{self.name}'
 FunctionRegistry.register(Var)
-  
+
 class Const(Expr):
   @overload
   def __init__(self, x: Union[NumericType, Numeric], type_cast: Literal[True] = ...) -> None: ...
@@ -121,7 +120,7 @@ class Add(Expr):
     return self.x._eval(**kwargs) + self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
-    return Add(self.x.differentiate(var), self.y.differentiate(var))
+    return self.x.differentiate(var) + self.y.differentiate(var)
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -157,7 +156,7 @@ class Neg(Expr):
     return -self.x._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
-    return Neg(self.x.differentiate(var))
+    return -self.x.differentiate(var)
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -169,7 +168,7 @@ class Neg(Expr):
     if not (isinstance(self.x, (Const, Var, Constant))): x = f'\\left({x}\\right)'
     return f'-{x}'
 FunctionRegistry.register(Neg)
-  
+
 class Mul(Expr):
   @overload
   def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
@@ -191,7 +190,7 @@ class Mul(Expr):
     return self.x._eval(**kwargs) * self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
-    return Add(Mul(self.x.differentiate(var), self.y), Mul(self.x, self.y.differentiate(var)))
+    return self.x.differentiate(var)*self.y + self.x*self.y.differentiate(var)
   
   # TODO: if one is const and one is constant no mul sign
   #       if both are constant no mul sign
@@ -238,12 +237,7 @@ class Log(Expr):
     return log(self.x._eval(**kwargs), self.base._eval(**kwargs))
   
   def differentiate(self, var: Var) -> Expr:
-    return Div(
-              Sub(
-                Div(Mul(self.x.differentiate(var), Ln(self.base)), self.x), 
-                Div(Mul(self.base.differentiate(var), Ln(self.x)), self.base)), 
-              Pow(Ln(self.base), Const(2))
-            )
+    return ((self.x.differentiate(var)*Ln(self.base))/self.x-(self.base.differentiate(var)*Ln(self.x))/self.base)/(Ln(self.base)**2)
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -277,9 +271,7 @@ class Pow(Expr):
     return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
-    return Mul(Pow(self.x, self.y), Add(Mul(self.y, Div(self.x.differentiate(var), self.x)), Mul(self.y.differentiate(var), Ln(self.x))))
-    return Add(Mul(Mul(self.y, Pow(self.x, Sub(self.y, Const(1)))), self.x.differentiate(var)),
-               Mul(Mul(Pow(self.x, self.y), Ln(self.x)), self.y.differentiate(var)))
+    return self.x.differentiate(var) * (self.y * ((self.x**self.y)/self.x)) + (self.x**self.y) * (self.y.differentiate(var) * Ln(self.x))
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -345,7 +337,7 @@ class Cos(Expr):
     return cos(self.x._eval(**kwargs))
   
   def differentiate(self, var: Var) -> Expr:
-    return Neg(Sin(self.x)) * self.x.differentiate(var)
+    return (-Sin(self.x)) * self.x.differentiate(var)
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -459,7 +451,7 @@ class Complex(Expr):
     return Const(0)
   
   _pi = Constant(pi, name='π', latex_name='\\pi')
-  KnownPolarsRatio : Tuple[
+  KnownPolars : Tuple[
     Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
     Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
     Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
@@ -478,25 +470,26 @@ class Complex(Expr):
     (Sqrt(5 + 2*Sqrt(5)), lambda: ((2*Complex._pi)/5, (3*Complex._pi)/5, -((3*Complex._pi)/5), -((2*Complex._pi)/5))),
     (2 + Sqrt(3), lambda: ((5*Complex._pi)/12, (7*Complex._pi)/12, -((7*Complex._pi)/12), -((5*Complex._pi)/12))),
   )
+  
+  quadrant_convert_functions : Tuple[Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr]] = (lambda x: Const(x), lambda x: Const(pi - x), lambda x: Neg(Const(pi - x)), lambda x: Neg(x))
 
   def get_polar(self) -> Tuple[Numeric, Expr]:
     real, imag = self.real._eval(), self.imag._eval()
     r = fabs(self._eval())
     if almosteq(r, nint(r)): r = nint(r)
     ratio_real, ratio_imag = real / r, imag / r
-    on_axles = (almosteq(ratio_real, 1) and almosteq(ratio_imag, 0)) * 1 or \
-               (almosteq(ratio_real, 0) and almosteq(ratio_imag, 1)) * 2 or \
-               (almosteq(ratio_real, -1) and almosteq(ratio_imag, 0)) * 3 or \
-               (almosteq(ratio_real, 0) and almosteq(ratio_imag, -1)) * 4
-    
-    if on_axles: return Numeric(r, skip_conversion=True), [Const(0), self._pi/2, self._pi, -(self._pi/2)][on_axles-1]
+
+    if almosteq(ratio_real, 1) and almosteq(ratio_imag, 0): return Numeric(r, skip_conversion=True), Const(0)
+    elif almosteq(ratio_real, 0) and almosteq(ratio_imag, 1): return Numeric(r, skip_conversion=True), self._pi / 2
+    elif almosteq(ratio_real, -1) and almosteq(ratio_imag, 0): return Numeric(r, skip_conversion=True), self._pi
+    elif almosteq(ratio_real, 0) and almosteq(ratio_imag, -1): return Numeric(r, skip_conversion=True), -(self._pi / 2)
+
     abs_real, abs_imag = fabs(real) / r, fabs(imag) / r
     quadrant = [1, 4, 2, 3][((real < 0) << 1) | (imag < 0)]
-    quadrant_convert_functions : Tuple[Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr]] = (lambda x: Const(x), lambda x: Const(pi - x), lambda x: Neg(Const(pi - x)), lambda x: Neg(x))
     ratio = abs_imag/abs_real
-    has_exact_angle = next((coordinate_fxn()[quadrant-1] for tan_value, coordinate_fxn in self.KnownPolarsRatio if almosteq(ratio, tan_value._eval())), None)
+    has_exact_angle = next((coordinate_fxn()[quadrant-1] for tan_value, coordinate_fxn in self.KnownPolars if almosteq(ratio, tan_value._eval())), None)
     if has_exact_angle: return Numeric(r, skip_conversion=True), has_exact_angle
-    else: return Numeric(r, skip_conversion=True), quadrant_convert_functions[quadrant-1](atan(abs_imag/abs_real))
+    else: return Numeric(r, skip_conversion=True), self.quadrant_convert_functions[quadrant-1](atan(ratio))
   
   def _print_repr(self) -> str:
     if self._representation == ComplexForm.Polar:
@@ -552,9 +545,3 @@ class Complex(Expr):
     elif representation == ComplexForm.Rectangular and self.imag: self.priority = 999
     elif representation == ComplexForm.Rectangular and self.real: self.priority = 999
 FunctionRegistry.register(Complex)
-
-if __name__ == "__main__":
-  x = Var('x')
-  expr = x / 2 + 4
-  print(expr)
-  print(Const(expr._eval(x=Const(1))))

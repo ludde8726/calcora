@@ -7,7 +7,7 @@ from calcora.types import CalcoraNumber, NumericType, RealNumeric
 from calcora.utils import mpmathcast
 
 from mpmath import fabs, floor, ceil
-from mpmath import mpf, mpc, nstr, workdps
+from mpmath import mpf, mpc, nstr, workdps, nint
 
 class Numeric:
   def __init__(self, x: NumericType, precision: Optional[int] = None, skip_conversion: bool = False) -> None:
@@ -91,6 +91,10 @@ class Numeric:
     with workdps(self.precision): return Numeric(floor(self.value), precision=self.precision, skip_conversion=True)
   def __ceil__(self) -> Numeric: 
     with workdps(self.precision): return Numeric(ceil(self.value), precision=self.precision, skip_conversion=True)
+  def __round__(self, ndigits: int = 0):
+    with workdps(self.precision): 
+      factor = mpf(10)**ndigits
+      return Numeric(nint(self.value*factor)/factor, precision=self.precision, skip_conversion=True)
   
   def __add__(self, other: Union[NumericType, Numeric]) -> Numeric: 
     with workdps(work_dps := self.get_dps(other)): return Numeric(self.value + Numeric.numeric_cast(other).value, precision=work_dps, skip_conversion=True)
