@@ -22,13 +22,13 @@ def generate_random_expression(depth: int, num_vars: int = 0) -> Expr:
   vars = string.ascii_lowercase[:num_vars]
   if depth == 1: return Const(random.uniform(1, 7))
   else:
-    operation : Type[Expr] = random.choice([Add, Sub, Mul, Neg]) if not num_vars else random.choice([Add, Sub, Mul, Neg, Var])
+    operation = random.choice([Add, Sub, Mul, Neg]) if not num_vars else random.choice([Add, Sub, Mul, Neg, Var])
     left_expr = generate_random_expression(depth - 1, num_vars)
-    if operation in [Add, Sub, Mul, Div]:
+    if operation is Add or operation is Sub or operation is Mul:
       right_expr = generate_random_expression(depth - 1, num_vars)
-      return operation(left_expr, right_expr)
+      return operation(left_expr, right_expr, type_cast=True) # type: ignore
     elif operation is Var:
-      return operation(vars[random.randint(0,num_vars-1)])
+      return Var(vars[random.randint(0,num_vars-1)])
     else: return Neg(left_expr)
 
 class TestLambdify(unittest.TestCase):

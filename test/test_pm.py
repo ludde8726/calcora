@@ -20,9 +20,9 @@ ec.precision = int(os.getenv("PREC", 16))
 def generate_random_expression(depth: int) -> Expr:
   if depth == 1: return Const(random.uniform(1, 10))
   else:
-    operation : Type[Expr] = random.choice([Add, Sub, Mul, Div, Neg])
+    operation = random.choice([Add, Sub, Mul, Div, Neg])
     left_expr = generate_random_expression(depth - 1)
-    if operation in [Add, Sub, Mul, Div]:
+    if operation is Add or operation is Sub or operation is Div:
       right_expr = generate_random_expression(depth - 1)
       return operation(left_expr, right_expr)
     else: return Neg(left_expr)

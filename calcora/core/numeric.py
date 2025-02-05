@@ -91,7 +91,7 @@ class Numeric:
     with workdps(self.precision): return Numeric(floor(self.value), precision=self.precision, skip_conversion=True)
   def __ceil__(self) -> Numeric: 
     with workdps(self.precision): return Numeric(ceil(self.value), precision=self.precision, skip_conversion=True)
-  def __round__(self, ndigits: int = 0):
+  def __round__(self, ndigits: int = 0) -> Numeric:
     with workdps(self.precision): 
       factor = mpf(10)**ndigits
       return Numeric(nint(self.value*factor)/factor, precision=self.precision, skip_conversion=True)

@@ -8,6 +8,7 @@ __pycache__/
 
 examples/
 calcora/untracked/
+calcora/external/
 calcora.egg-info/
 
 ctest.c

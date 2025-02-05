@@ -22,7 +22,6 @@ type ExprArgTypes = Union[NumericType, Numeric, Expr]
 def should_not_numeric_cast(x: Union[Numeric, RealNumeric], should_c: bool) -> TypeGuard[Numeric]: return not should_c
 def should_not_cast(x: ExprArgTypes, should_c: bool) -> TypeGuard[Expr]: return not should_c
 
-# Note: There should proboably be some sort of argument on the ops that specify if typecast should be called
 def typecast(x: Union[NumericType, Numeric, Expr]) -> Expr:
   if isinstance(x, Expr): return x
   elif isinstance(x, Numeric): return Const(x) if x >= 0 else Neg(Const(abs(x)))
