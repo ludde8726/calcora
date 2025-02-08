@@ -10,7 +10,7 @@ from calcora.utils import is_const_like, dprint
 
 from calcora.core.expression import Expr
 from calcora.core.numeric import Numeric
-from calcora.core.registry import ConstantRegistry, FunctionRegistry
+from calcora.core.registry import ConstantRegistry, FunctionRegistry, Dispatcher
 
 from mpmath import mpf, mpc, log, sin, cos, fabs, atan, pi, almosteq, nint
 
@@ -22,20 +22,8 @@ type ExprArgTypes = Union[NumericType, Numeric, Expr]
 def should_not_numeric_cast(x: Union[Numeric, RealNumeric], should_c: bool) -> TypeGuard[Numeric]: return not should_c
 def should_not_cast(x: ExprArgTypes, should_c: bool) -> TypeGuard[Expr]: return not should_c
 
-def typecast(x: Union[NumericType, Numeric, Expr]) -> Expr:
-  if isinstance(x, Expr): return x
-  elif isinstance(x, Numeric): return Const(x) if x >= 0 else Neg(Const(abs(x)))
-  elif isinstance(x, (float, int)): 
-    n = Numeric(x)
-    return Const(n) if n >= 0 else Neg(Const(abs(n)))
-  elif isinstance(x, (complex, str, mpf, mpc)): 
-    num = Numeric(x)
-    if num.imag: return Complex(num.real if num.real >= 0 else Neg(abs(num.real)), num.imag if num.imag >= 0 else Neg(abs(num.imag)))
-    else: return Const(num) if num >= 0 else Const(abs(num))
-  else: raise TypeError(f"Invalid type {type(x)} for conversion to type Const")
-
 class Var(Expr):
-  def __init__(self, name: str, type_cast : Literal[True, False] = True) -> None:
+  def __init__(self, name: str) -> None:
     self.name = name
     super().__init__(name)
     self.priority = 999
@@ -44,10 +32,10 @@ class Var(Expr):
   def _init(name: str) -> None: pass
   
   def differentiate(self, var: Var) -> Expr: 
-    return Const(1) if self == var else Const(0)
+    return Const(Numeric(1)) if self == var else Const(Numeric(0))
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
-    if self.name in kwargs: return typecast(kwargs[self.name])._eval()
+    if self.name in kwargs: return kwargs[self.name]._eval()
     raise ValueError(f"Specified value for type var is required for evaluation, no value for var with name '{self.name}'")
   
   def _print_repr(self) -> str: return f'{self.name}'
@@ -55,29 +43,22 @@ class Var(Expr):
 FunctionRegistry.register(Var)
 
 class Const(Expr):
-  @overload
-  def __init__(self, x: Union[NumericType, Numeric], type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Numeric, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: Union[NumericType, Numeric], type_cast: Literal[True, False] = True) -> None:
-    if should_not_numeric_cast(x, type_cast): self.x = x
-    else: self.x = Numeric.numeric_cast(x)
+  def __init__(self, x: Numeric) -> None:
+    self.x = x
     if self.x.real < 0 or self.x.imag: raise ValueError("Const value must be a real, positive value!")
     super().__init__(self.x)
     self.priority = 999
   
   @staticmethod
-  def _init(x: Union[NumericType, Numeric]) -> None: pass
-  
+  def _init(x: Expr) -> None: pass
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x.value.real
-  def differentiate(self, var: Var) -> Expr: return Const(0)
+  def differentiate(self, var: Var) -> Expr: return Const(Numeric(0))
   def _print_repr(self) -> str: return f'{self.x}'
   def _print_latex(self) -> str: return f'{self.x}'
 FunctionRegistry.register(Const)
   
 class Constant(Expr):
-  def __init__(self, x: _constant, name: str, latex_name: Optional[str] = None, type_cast: bool = True) -> None: 
+  def __init__(self, x: _constant, name: str, latex_name: Optional[str] = None) -> None: 
     self.x = x
     self.name = name
     self.latex_name = latex_name if latex_name else name
@@ -88,7 +69,7 @@ class Constant(Expr):
   def _init(x: _constant, name: str) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: return self.x()
-  def differentiate(self, var: Var) -> Expr: return Const(0)
+  def differentiate(self, var: Var) -> Expr: return Const(Numeric(0))
   def _print_repr(self) -> str: return self.name
   def _print_latex(self) -> str: return f'{self.latex_name}'
 FunctionRegistry.register(Constant)
@@ -99,21 +80,14 @@ class ComplexForm(Enum):
   Exponential = auto()
 
 class Add(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    if should_not_cast(y, type_cast): self.y = y
-    else: self.y = typecast(y)
+  def __init__(self, x: Expr, y: Expr) -> None:
+    self.x = x
+    self.y = y
     super().__init__(self.x, self.y, commutative=True)
     self.priority = 1
 
   @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
+  def _init(x: Expr, y: Expr) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) + self.y._eval(**kwargs)
@@ -137,14 +111,8 @@ class Add(Expr):
 FunctionRegistry.register(Add)
 
 class Neg(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
+  def __init__(self, x: Expr) -> None:
+    self.x = x
     super().__init__(self.x)
     self.priority = 0
 
@@ -169,21 +137,14 @@ class Neg(Expr):
 FunctionRegistry.register(Neg)
 
 class Mul(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    if should_not_cast(y, type_cast): self.y = y
-    else: self.y = typecast(y)
+  def __init__(self, x: Expr, y: Expr) -> None:
+    self.x = x
+    self.y = y
     super().__init__(self.x, self.y, commutative=True)
     self.priority = 2
   
   @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
+  def _init(x: Expr, y: Expr) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) * self.y._eval(**kwargs)
@@ -216,27 +177,20 @@ class Mul(Expr):
 FunctionRegistry.register(Mul)
 
 class Log(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, base: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, base: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, base: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    if should_not_cast(base, type_cast): self.base = base
-    else: self.base = typecast(base)
+  def __init__(self, x: Expr, base: Expr) -> None:
+    self.x = x
+    self.base = base
     super().__init__(self.x, self.base)
     self.priority = 4
   
   @staticmethod
-  def _init(x: ExprArgTypes, base: ExprArgTypes) -> None: pass
+  def _init(x: Expr, base: Expr) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
     return log(self.x._eval(**kwargs), self.base._eval(**kwargs))
   
   def differentiate(self, var: Var) -> Expr:
-    return ((self.x.differentiate(var)*Ln(self.base))/self.x-(self.base.differentiate(var)*Ln(self.x))/self.base)/(Ln(self.base)**2)
+    return ((self.x.differentiate(var)*self.base.ln())/self.x-(self.base.differentiate(var)*self.x.ln())/self.base)/(self.base.ln()**2)
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -250,27 +204,20 @@ class Log(Expr):
 FunctionRegistry.register(Log)
 
 class Pow(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, y: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
-    if should_not_cast(y, type_cast): self.y = y
-    else: self.y = typecast(y)
+  def __init__(self, x: Expr, y: Expr) -> None:
+    self.x = x
+    self.y = y
     super().__init__(self.x, self.y)
     self.priority = 3
   
   @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
+  def _init(x: Expr, y: Expr) -> None: pass
 
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return self.x._eval(**kwargs) ** self.y._eval(**kwargs)
   
   def differentiate(self, var: Var) -> Expr:
-    return self.x.differentiate(var) * (self.y * ((self.x**self.y)/self.x)) + (self.x**self.y) * (self.y.differentiate(var) * Ln(self.x))
+    return self.x.differentiate(var) * (self.y * ((self.x**self.y)/self.x)) + (self.x**self.y) * (self.y.differentiate(var) * self.x.ln())
   
   def _print_repr(self) -> str:
     x = self.x._print_repr()
@@ -288,19 +235,13 @@ class Pow(Expr):
 FunctionRegistry.register(Pow)
 
 class Sin(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
+  def __init__(self, x: Expr) -> None:
+    self.x = x
     super().__init__(self.x)
     self.priority = 4
   
   @staticmethod
-  def _init(x: ExprArgTypes) -> None: pass
+  def _init(x: Expr) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return sin(self.x._eval(**kwargs))
@@ -318,19 +259,13 @@ class Sin(Expr):
 FunctionRegistry.register(Sin)
   
 class Cos(Expr):
-  @overload
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True] = ...) -> None: ...
-  @overload
-  def __init__(self, x: Expr, type_cast: Literal[False]) -> None: ...
-
-  def __init__(self, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> None:
-    if should_not_cast(x, type_cast): self.x = x
-    else: self.x = typecast(x)
+  def __init__(self, x: Expr) -> None:
+    self.x = x
     super().__init__(self.x)
     self.priority = 4
   
   @staticmethod
-  def _init(x: ExprArgTypes) -> None: pass
+  def _init(x: Expr) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber:
     return cos(self.x._eval(**kwargs))
@@ -347,61 +282,8 @@ class Cos(Expr):
     return f'\\cos\\left({x}\\right)'
 FunctionRegistry.register(Cos)
 
-class Div(Expr):
-  @overload
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
-  @overload
-  def __new__(cls, x: Expr, y: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
-
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
-    if y == Const(0): raise ZeroDivisionError('Denominator cannot be zero!')
-    return Mul(x, Pow(y, Neg(Const(1))))
-  
-  @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
-FunctionRegistry.register(Div)
-  
-class Sub(Expr):
-  @overload
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
-  @overload
-  def __new__(cls, x: Expr, y: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
-
-  def __new__(cls, x: ExprArgTypes, y: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
-    return Add(x, Neg(y))
-  
-  @staticmethod
-  def _init(x: ExprArgTypes, y: ExprArgTypes) -> None: pass
-FunctionRegistry.register(Sub)
-  
-class Ln(Expr):
-  @overload
-  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
-  @overload
-  def __new__(cls, x: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
-
-  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
-    return Log(x, ConstantRegistry.get('e'))
-  
-  @staticmethod
-  def _init(x: ExprArgTypes) -> None: pass
-FunctionRegistry.register(Ln)
-
-class Sqrt(Expr):
-  @overload
-  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True] = ...) -> Expr: ... # type: ignore
-  @overload
-  def __new__(cls, x: Expr, type_cast: Literal[False]) -> Expr: ... # type: ignore
-
-  def __new__(cls, x: ExprArgTypes, type_cast: Literal[True, False] = True) -> Expr: # type: ignore
-    return Pow(x, Const(0.5))
-  
-  @staticmethod
-  def _init(x: ExprArgTypes) -> None: pass
-FunctionRegistry.register(Sqrt)
-
 class AnyOp(Expr):
-  def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False, type_cast: Literal[True, False] = True) -> None:
+  def __init__(self, match: bool = False, name: str = "x", assert_const_like: bool = False) -> None:
     self.match = match
     self.name = name
     self.assert_const_like = assert_const_like
@@ -420,18 +302,11 @@ class AnyOp(Expr):
   def _print_latex(self) -> str:
     return f'Any(name={self.name}, match={self.match}, const={self.assert_const_like})'
 FunctionRegistry.register(AnyOp)
-  
-class Complex(Expr):
-  @overload
-  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True] = ..., representation: ComplexForm = ComplexForm.Rectangular) -> None: ...
-  @overload
-  def __init__(self, real: Expr, imag: Expr, type_cast: Literal[False], representation: ComplexForm = ComplexForm.Rectangular) -> None: ...
 
-  def __init__(self, real: ExprArgTypes, imag: ExprArgTypes, type_cast: Literal[True, False] = True, representation: ComplexForm = ComplexForm.Rectangular) -> None:
-    if should_not_cast(real, type_cast): self.real = real
-    else: self.real = typecast(real)
-    if should_not_cast(imag, type_cast): self.imag = imag
-    else: self.imag = typecast(imag)
+class Complex(Expr):
+  def __init__(self, real: Expr, imag: Expr, type_cast: Literal[True, False] = True, representation: ComplexForm = ComplexForm.Rectangular) -> None:
+    self.real = real
+    self.imag = imag
     super().__init__(self.real, self.imag)
     if not is_const_like(self) and representation != ComplexForm.Rectangular: 
       dprint("Polar or exponential representation of complex number with variables is not allowed!", 0, "yellow")
@@ -440,15 +315,16 @@ class Complex(Expr):
     self.priority = 1 if self.real and self.imag else 999
   
   @staticmethod
-  def _init(real: ExprArgTypes, imag: ExprArgTypes, form: ComplexForm = ComplexForm.Rectangular) -> None: pass
+  def _init(real: Expr, imag: Expr, form: ComplexForm = ComplexForm.Rectangular) -> None: pass
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: 
     return mpc(real=self.real._eval(**kwargs), imag=self.imag._eval(**kwargs))
   
   def differentiate(self, var: Var) -> Expr:
     if self.imag != 0: raise ValueError('Cannot differentiate imaginary numbers (for now)')
-    return Const(0)
+    return Const(Numeric(0))
   
+  Dispatcher._run_callbacks = False
   _pi = Constant(pi, name='π', latex_name='\\pi')
   KnownPolars : Tuple[
     Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
@@ -460,15 +336,16 @@ class Complex(Expr):
     Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
     Tuple[Expr, Callable[[], Tuple[Expr, Expr, Expr, Expr]]],
   ] = (
-    (2 - Sqrt(3), lambda: (Complex._pi/12, (11*Complex._pi)/12, -((11*Complex._pi)/12), -(Complex._pi/12))),
-    (Sqrt(3-2*Sqrt(2)), lambda: (Complex._pi/8, (7*Complex._pi)/8, -((7*Complex._pi)/8), -(Complex._pi/8))),
-    (1/Sqrt(3), lambda: (Complex._pi/6, (5*Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6))),
-    (Sqrt(5 - 2*Sqrt(5)), lambda: (Complex._pi/5, (4 * Complex._pi)/5, -((4*Complex._pi)/5), -(Complex._pi/5))),
-    (Const(1), lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4))),
-    (Sqrt(3), lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3))),
-    (Sqrt(5 + 2*Sqrt(5)), lambda: ((2*Complex._pi)/5, (3*Complex._pi)/5, -((3*Complex._pi)/5), -((2*Complex._pi)/5))),
-    (2 + Sqrt(3), lambda: ((5*Complex._pi)/12, (7*Complex._pi)/12, -((7*Complex._pi)/12), -((5*Complex._pi)/12))),
+    (2 - Dispatcher.sqrt(3), lambda: (Complex._pi/12, (11*Complex._pi)/12, -((11*Complex._pi)/12), -(Complex._pi/12))), # 2 - sqrt(3)
+    (Dispatcher.sqrt(3-2*Dispatcher.sqrt(2)), lambda: (Complex._pi/8, (7*Complex._pi)/8, -((7*Complex._pi)/8), -(Complex._pi/8))),
+    (1/Dispatcher.sqrt(3), lambda: (Complex._pi/6, (5*Complex._pi)/6, -((5*Complex._pi)/6), -(Complex._pi/6))),
+    (Dispatcher.sqrt(5 - 2*Dispatcher.sqrt(5)), lambda: (Complex._pi/5, (4*Complex._pi)/5, -((4*Complex._pi)/5), -(Complex._pi/5))),
+    (Const(Numeric(1)), lambda: (Complex._pi/4, (3*Complex._pi)/4, -((3*Complex._pi)/4), -(Complex._pi/4))),
+    (Dispatcher.sqrt(3), lambda: (Complex._pi/3, (2*Complex._pi)/3, -((2*Complex._pi)/3), -(Complex._pi/3))),
+    (Dispatcher.sqrt(5 + 2*Dispatcher.sqrt(5)), lambda: ((2*Complex._pi)/5, (3*Complex._pi)/5, -((3*Complex._pi)/5), -((2*Complex._pi)/5))),
+    (2 + Dispatcher.sqrt(3), lambda: ((5*Complex._pi)/12, (7*Complex._pi)/12, -((7*Complex._pi)/12), -((5*Complex._pi)/12))),
   )
+  Dispatcher._run_callbacks = True
   
   quadrant_convert_functions : Tuple[Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr], Callable[[CalcoraNumber], Expr]] = (lambda x: Const(x), lambda x: Const(pi - x), lambda x: Neg(Const(pi - x)), lambda x: Neg(x))
 
@@ -478,7 +355,7 @@ class Complex(Expr):
     if almosteq(r, nint(r)): r = nint(r)
     ratio_real, ratio_imag = real / r, imag / r
 
-    if almosteq(ratio_real, 1) and almosteq(ratio_imag, 0): return Numeric(r, skip_conversion=True), Const(0)
+    if almosteq(ratio_real, 1) and almosteq(ratio_imag, 0): return Numeric(r, skip_conversion=True), Const(Numeric(0))
     elif almosteq(ratio_real, 0) and almosteq(ratio_imag, 1): return Numeric(r, skip_conversion=True), self._pi / 2
     elif almosteq(ratio_real, -1) and almosteq(ratio_imag, 0): return Numeric(r, skip_conversion=True), self._pi
     elif almosteq(ratio_real, 0) and almosteq(ratio_imag, -1): return Numeric(r, skip_conversion=True), -(self._pi / 2)
@@ -502,12 +379,12 @@ class Complex(Expr):
     else:
       if isinstance(self.imag, Neg):
         imag = f'{self.imag.x._print_repr()}i'
-        if self.imag.x == Const(1): imag = 'i'
+        if self.imag.x == Const(Numeric(1)): imag = 'i'
         if not self.real: return f'-{imag}'
         return f'{self.real._print_repr()} - {imag}'
       else:
         imag = f'{self.imag._print_repr()}i'
-        if self.imag == Const(1): imag = 'i'
+        if self.imag == Const(Numeric(1)): imag = 'i'
         if not self.real: return f'{imag}'
         return f'{self.real._print_repr()} + {imag}'
   
@@ -523,13 +400,13 @@ class Complex(Expr):
     else:
       if isinstance(self.imag, Neg):
         imag = f'{self.imag.x._print_latex()}i'
-        if self.imag == Const(1): imag = '-i'
-        if self.real == Const(0): return f'{imag}'
+        if self.imag == Const(Numeric(1)): imag = '-i'
+        if self.real == Const(Numeric(0)): return f'{imag}'
         return f'{self.real._print_latex()} - {imag}'
       else:
         imag = f'{self.imag._print_latex()}i'
-        if self.imag == Const(1): imag = 'i'
-        if self.real == Const(0): return f'{imag}'
+        if self.imag == Const(Numeric(1)): imag = 'i'
+        if self.real == Const(Numeric(0)): return f'{imag}'
         return f'{self.real._print_latex()} + {imag}'
   
   @property

@@ -5,7 +5,7 @@ from calcora.globals import pc
 
 from calcora.printing.printops import PrintableDiv, PrintableLn, PrintableSub, PrintableSqrt, PrintableOp
 
-from calcora.core.constants import E
+from calcora.core.constants import E, OneHalf, NegOne
 from calcora.core.expression import Expr
 from calcora.core.ops import Add, AnyOp, Const, Constant, Log, Mul, Neg, Pow, Var
 
@@ -14,12 +14,11 @@ from calcora.match.pattern import Pattern
 from calcora.match.pattern import NamedAny
 from calcora.match.simplify import simplify
 
-
 RewriteOpsPatternMatcher = PatternMatcher([
   Pattern(Add(NamedAny('x'), Neg(NamedAny('y'))), lambda x,y: PrintableSub(x, y)),
-  Pattern(Mul(NamedAny('x'), Pow(NamedAny('y'), Neg(Const(1)))), lambda x,y: PrintableDiv(x, y)),
+  Pattern(Mul(NamedAny('x'), Pow(NamedAny('y'), NegOne)), lambda x,y: PrintableDiv(x, y)),
   Pattern(Log(NamedAny('x'), E), lambda x: PrintableLn(x)), 
-  Pattern(Pow(NamedAny('x'), Const(0.5)), lambda x: PrintableSqrt(x))
+  Pattern(Pow(NamedAny('x'), OneHalf), lambda x: PrintableSqrt(x))
 ])
 
 class Printer:

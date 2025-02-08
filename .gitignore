@@ -11,6 +11,11 @@ calcora/untracked/
 calcora/external/
 calcora.egg-info/
 
+test/test_cache.py
+test/test_ccompiler.py
+test/test_derivatives.py
+test/test_hash.py 
+
 ctest.c
 a.out
 

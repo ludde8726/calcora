@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Tuple, Union
+from itertools import permutations
+from typing import Any, Tuple, Union, Hashable
 from typing import TYPE_CHECKING
 import weakref
 
 from calcora.globals import BaseOps, GlobalCounter
 from calcora.types import CalcoraNumber, NumericType
 
-from calcora.core.number import Number
 from calcora.core.numeric import Numeric
-from calcora.core.registry import FunctionRegistry
+from calcora.core.registry import FunctionRegistry, Dispatcher, ExprArgTypes
 
 from calcora.utils import dprint
 
@@ -34,41 +34,38 @@ class Expr:
     dprint(f'Op \'{self.fxn.name}\' created with args $', 4, 'yellow', self.args)
 
   def __eq__(self, other: object) -> bool:
-    return isinstance(other, Expr) and self.fxn == other.fxn and self.args == other.args
+    return isinstance(other, Expr) and self.fxn == other.fxn and \
+      (self.args == other.args if not self.commutative else any(other.args == op_args for op_args in permutations(self.args)))
   
-  @staticmethod
-  def const_cast(x: Union[Union[NumericType, Numeric, Expr], Expr]) -> Expr:
-    if not isinstance(x, (int, float, mpc, mpf, str, Expr)): raise ValueError(f'Cannot cast type {type(x)} to type Number')
-    if isinstance(x, Expr): return x
-    return Number(x)
+  def __hash__(self) -> int: return hash((self.fxn.name, frozenset(self.args) if self.commutative else self.args))
   
-  def add(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Add')(self, x)
-  def sub(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Sub')(self, x)
-  def mul(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Mul')(self, x)
-  def div(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Div')(self, x)
-  def neg(self) -> Expr: return FunctionRegistry.get('Neg')(self)
-  def pow(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Pow')(self, x)
-  def log(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Log')(self, x)
-  def ln(self) -> Expr: return FunctionRegistry.get('Ln')(self)
-  def sin(self) -> Expr: return FunctionRegistry.get('Sin')(self)
-  def cos(self) -> Expr: return FunctionRegistry.get('Cos')(self)
+  def add(self, x: ExprArgTypes) -> Expr: return Dispatcher.add(self, x)
+  def sub(self, x: ExprArgTypes) -> Expr: return Dispatcher.sub(self, x)
+  def mul(self, x: ExprArgTypes) -> Expr: return Dispatcher.mul(self, x)
+  def div(self, x: ExprArgTypes) -> Expr: return Dispatcher.div(self, x)
+  def neg(self) -> Expr: return Dispatcher.neg(self)
+  def pow(self, x: ExprArgTypes) -> Expr: return Dispatcher.pow(self, x)
+  def log(self, base: ExprArgTypes) -> Expr: return Dispatcher.log(self, base)
+  def ln(self) -> Expr: return Dispatcher.ln(self)
+  def sin(self) -> Expr: return Dispatcher.sin(self)
+  def cos(self) -> Expr: return Dispatcher.cos(self)
   
-  def __add__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.add(x)
+  def __add__(self, x: ExprArgTypes) -> Expr: return self.add(x)
   def __neg__(self) -> Expr: return self.neg()
-  def __sub__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.sub(x)
-  def __mul__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.mul(x)
-  def __truediv__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.div(x)
-  def __pow__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return self.pow(x)
+  def __sub__(self, x: ExprArgTypes) -> Expr: return self.sub(x)
+  def __mul__(self, x: ExprArgTypes) -> Expr: return self.mul(x)
+  def __truediv__(self, x: ExprArgTypes) -> Expr: return self.div(x)
+  def __pow__(self, x: ExprArgTypes) -> Expr: return self.pow(x)
 
-  def __radd__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Add')(x, self) 
-  def __rmul__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Mul')(x, self)
-  def __rsub__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Sub')(x, self)
-  def __rtruediv__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Div')(x, self)
-  def __rpow__(self, x: Union[NumericType, Numeric, Expr]) -> Expr: return FunctionRegistry.get('Pow')(x, self)
+  def __radd__(self, x: ExprArgTypes) -> Expr: return Dispatcher.add(x, self)
+  def __rmul__(self, x: ExprArgTypes) -> Expr: return Dispatcher.mul(x, self)
+  def __rsub__(self, x: ExprArgTypes) -> Expr: return Dispatcher.sub(x, self)
+  def __rtruediv__(self, x: ExprArgTypes) -> Expr: return Dispatcher.div(x, self)
+  def __rpow__(self, x: ExprArgTypes) -> Expr: return Dispatcher.pow(x, self)
   
   def __int__(self) -> int: return int(self._eval())
   def __float__(self) -> float: return float(self._eval())
-  def __bool__(self) -> bool: return self != FunctionRegistry.get('Const')(0)
+  def __bool__(self) -> bool: return self != Dispatcher.const(0)
   
   def differentiate(self, var: Var) -> Expr: raise NotImplementedError()
 
@@ -78,10 +75,7 @@ class Expr:
     dprint(f'Evaluating $ -> $', 1, 'green', self, result)
     return result
   
-  def eval(self, **kwargs: Expr) -> Expr:
-    result = Number(self._eval(**kwargs))
-    dprint(f'Evaluating $ -> $', 1, 'green', self, result)
-    return result
+  def eval(self, **kwargs: Expr) -> Numeric: return self.evalf(**kwargs)
   
   def _eval(self, **kwargs: Expr) -> CalcoraNumber: raise NotImplementedError(f"Op {self.__class__.__name__} does not implement the eval method.")
 

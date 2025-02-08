@@ -43,6 +43,7 @@ class ClangProgram:
     self.fxn_code += f'  res->imag = cimag(result);\n'
     self.fxn_code += '}'
     self.compiled : Optional[bytes] = None
+    self.function : Optional[ctypes.CDLL]
 
   def compile(self) -> None:
     with tempfile.NamedTemporaryFile(delete=True) as output_file:
@@ -50,6 +51,9 @@ class ClangProgram:
       try: subprocess.check_output(args=arguments, input=self.fxn_code.encode("utf-8"), stderr=subprocess.PIPE)
       except subprocess.CalledProcessError as e: print(f"Error during compilation: {e.stderr.decode()}")
       self.compiled = pathlib.Path(output_file.name).read_bytes()
+      self.function = ctypes.CDLL(str(output_file.name))
+      getattr(self.function, self.fxn_name).argtypes = [LongDoubleComplex] * len(self.fxn_vars) + [ctypes.POINTER(LongDoubleComplex)]
+      getattr(self.function, self.fxn_name).restype = None
 
   def _longdoublecomplexcast(self, *vals: Union[float, complex, Expr, LongDoubleComplex]) -> List[LongDoubleComplex]:
     res = []
@@ -68,11 +72,7 @@ class ClangProgram:
     if len(args) != len(self.fxn_vars): raise TypeError(f"Function requires {len(self.fxn_vars)} arguments ({','.join(self.fxn_vars)}) but {len(args)} were given")
     if self.compiled:
       res_var = LongDoubleComplex()
-      with tempfile.NamedTemporaryFile(delete=True) as cached_file_path:
-        pathlib.Path(cached_file_path.name).write_bytes(self.compiled)
-        fxn = ctypes.CDLL(str(cached_file_path.name))
-        getattr(fxn, self.fxn_name).argtypes = [LongDoubleComplex] * len(self.fxn_vars) + [ctypes.POINTER(LongDoubleComplex)]
-        getattr(fxn, self.fxn_name).restype = None
-        getattr(fxn, self.fxn_name)(*new_args, ctypes.byref(res_var))
-        return complex(res_var.real, res_var.imag)
+      getattr(self.function, self.fxn_name)(*new_args, ctypes.byref(res_var))
+      print(type(self.function))
+      return complex(res_var.real, res_var.imag)
     else: self.compile(); return self.__call__(*new_args)

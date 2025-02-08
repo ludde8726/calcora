@@ -52,6 +52,9 @@ class Numeric:
       elif isinstance(other, (int, float, complex)): return bool(mpc(other) == self.value)
       else: return bool(self.value == other)
     else: return False
+  
+  def __hash__(self) -> int:
+    return hash((str(self.real), str(self.imag)))
 
   def __gt__(self, other: Union[Numeric, RealNumeric]) -> bool:
     if self.value.imag: raise ValueError("Complex numbers have no ordering!")

@@ -38,8 +38,9 @@ class Pattern:
     if is_any_op(subpattern):
       if subpattern.assert_const_like and not is_const_like(op): return False
       if subpattern.match and subpattern.name in self._binding: 
-        if self._binding[subpattern.name].commutative: 
-          return any(self._binding[subpattern.name].args == op_args for op_args in permutations(op.args))
+        # I dont think this is necessary anymore but i am afraid to delete it...
+        # if self._binding[subpattern.name].commutative: 
+        #   return any(self._binding[subpattern.name].args == op_args for op_args in permutations(op.args))
         return self._binding[subpattern.name] == op
       self._binding[subpattern.name] = op
       return True

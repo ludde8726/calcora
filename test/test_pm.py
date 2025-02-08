@@ -7,7 +7,9 @@ import unittest
 from typing import List, Type
 from typing import TYPE_CHECKING
 
-from calcora.core.ops import Add, Complex, Const, Div, Log, Mul, Neg, Pow, Sub, Var
+from calcora.core.ops import Add, Complex, Const, Log, Mul, Neg, Pow, Var
+from calcora.core.numeric import Numeric
+from calcora.core.constants import Zero, One, Two, Three, Five
 from calcora.globals import ec
 from calcora.match.match import SymbolicPatternMatcher
 
@@ -18,11 +20,11 @@ x = Var('x')
 ec.precision = int(os.getenv("PREC", 16))
 
 def generate_random_expression(depth: int) -> Expr:
-  if depth == 1: return Const(random.uniform(1, 10))
+  if depth == 1: return Const(Numeric(random.uniform(1, 10)))
   else:
-    operation = random.choice([Add, Sub, Mul, Div, Neg])
+    operation : Type[Expr] = random.choice([Add, Mul, Neg])
     left_expr = generate_random_expression(depth - 1)
-    if operation is Add or operation is Sub or operation is Div:
+    if operation is Add or operation is Mul:
       right_expr = generate_random_expression(depth - 1)
       return operation(left_expr, right_expr)
     else: return Neg(left_expr)
@@ -32,9 +34,9 @@ class TestSymbolicPatternMatcher(unittest.TestCase):
     self.pm = SymbolicPatternMatcher
   
   def test_addition_of_zero(self) -> None:
-    expr = Add(x, Const(0))
+    expr = Add(x, Zero)
     self.assertEqual(self.pm.match(expr), x)
-    expr = Add(Const(0), x)
+    expr = Add(Zero, x)
     self.assertEqual(self.pm.match(expr), x)
 
   def test_negation_of_negation(self) -> None:
@@ -42,94 +44,94 @@ class TestSymbolicPatternMatcher(unittest.TestCase):
     self.assertEqual(self.pm.match(expr), x)
 
   def test_negation_of_zero(self) -> None:
-    expr = Neg(Const(0))
-    self.assertEqual(self.pm.match(expr), Const(0))
+    expr = Neg(Zero)
+    self.assertEqual(self.pm.match(expr), Zero)
 
   def test_multiplication_by_one(self) -> None:
-    expr = Mul(x, Const(1))
+    expr = Mul(x, One)
     self.assertEqual(self.pm.match(expr), x)
-    expr = Mul(Const(1), x)
+    expr = Mul(One, x)
     self.assertEqual(self.pm.match(expr), x)
 
   def test_multiplication_by_zero(self) -> None:
-    expr = Mul(x, Const(0))
-    self.assertEqual(self.pm.match(expr), Const(0))
-    expr = Mul(Const(0), x)
-    self.assertEqual(self.pm.match(expr), Const(0))
+    expr = Mul(x, Zero)
+    self.assertEqual(self.pm.match(expr), Zero)
+    expr = Mul(Zero, x)
+    self.assertEqual(self.pm.match(expr), Zero)
 
   def test_power_of_zero(self) -> None:
-    expr = Pow(Const(0), x)
-    self.assertEqual(self.pm.match(expr), Const(0))
+    expr = Pow(Zero, x)
+    self.assertEqual(self.pm.match(expr), Zero)
 
   def test_x_to_the_power_of_zero(self) -> None:
-    expr = Pow(x, Const(0))
-    self.assertEqual(self.pm.match(expr), Const(1))
+    expr = Pow(x, Zero)
+    self.assertEqual(self.pm.match(expr), One)
 
   def test_power_of_one(self) -> None:
-    expr = Pow(Const(1), x)
-    self.assertEqual(self.pm.match(expr), Const(1))
+    expr = Pow(One, x)
+    self.assertEqual(self.pm.match(expr), One)
 
   def test_x_to_the_power_of_one(self) -> None:
-    expr = Pow(x, Const(1))
+    expr = Pow(x, One)
     self.assertEqual(self.pm.match(expr), x)
 
   def test_multiplication_by_neg_one(self) -> None:
-    expr = Mul(x, Neg(Const(1)))
+    expr = Mul(x, Neg(One))
     self.assertEqual(self.pm.match(expr), Neg(x))
 
   def test_log_of_x_base_x(self) -> None:
-    expr = Log(Const(2), Const(2))
-    self.assertEqual(self.pm.match(expr), Const(1))
+    expr = Log(Two, Two)
+    self.assertEqual(self.pm.match(expr), One)
 
   def test_addition_of_opposite_terms(self) -> None:
     expr = Add(x, Neg(x))
-    self.assertEqual(self.pm.match(expr), Const(0))
+    self.assertEqual(self.pm.match(expr), Zero)
 
   def test_multiplication_by_inverse(self) -> None:
-    expr = Mul(x, Pow(x, Neg(Const(1))))
-    self.assertEqual(self.pm.match(expr), Const(1))
+    expr = Mul(x, Pow(x, Neg(One)))
+    self.assertEqual(self.pm.match(expr), One)
 
   def test_square_of_x(self) -> None:
     expr = Mul(x, x)
-    self.assertEqual(self.pm.match(expr), Pow(x, Const(2)))
+    self.assertEqual(self.pm.match(expr), Pow(x, Two))
 
   def test_addition_of_scaled_x(self) -> None:
-    expr = Add(x, Mul(Const(2), x))
-    self.assertEqual(self.pm.match(expr), Mul(Const(3), x))
-    expr = Add(x, Mul(x, Const(2)))
-    self.assertEqual(self.pm.match(expr), Mul(Const(3), x))
-    expr = Add(Mul(Const(2), x), x)
-    self.assertEqual(self.pm.match(expr), Mul(Const(3), x))
-    expr = Add(Mul(x, Const(2)), x)
-    self.assertEqual(self.pm.match(expr), Mul(Const(3), x))
+    expr = Add(x, Mul(Two, x))
+    self.assertEqual(self.pm.match(expr), Mul(Three, x))
+    expr = Add(x, Mul(x, Two))
+    self.assertEqual(self.pm.match(expr), Mul(Three, x))
+    expr = Add(Mul(Two, x), x)
+    self.assertEqual(self.pm.match(expr), Mul(Three, x))
+    expr = Add(Mul(x, Two), x)
+    self.assertEqual(self.pm.match(expr), Mul(Three, x))
 
   def test_addition_of_several_x_terms(self) -> None:
-    expr = Add(Mul(Const(2), x), Mul(Const(3), x))
-    self.assertEqual(self.pm.match(expr), Mul(Const(5), x))
-    expr = Add(Mul(x, Const(2)), Mul(Const(3), x))
-    self.assertEqual(self.pm.match(expr), Mul(Const(5), x))
-    expr = Add(Mul(Const(2), x), Mul(x, Const(3)))
-    self.assertEqual(self.pm.match(expr), Mul(Const(5), x))
-    expr = Add(Mul(x, Const(2)), Mul(x, Const(3)))
-    self.assertEqual(self.pm.match(expr), Mul(Const(5), x))
+    expr = Add(Mul(Two, x), Mul(Three, x))
+    self.assertEqual(self.pm.match(expr), Mul(Five, x))
+    expr = Add(Mul(x, Two), Mul(Three, x))
+    self.assertEqual(self.pm.match(expr), Mul(Five, x))
+    expr = Add(Mul(Two, x), Mul(x, Three))
+    self.assertEqual(self.pm.match(expr), Mul(Five, x))
+    expr = Add(Mul(x, Two), Mul(x, Three))
+    self.assertEqual(self.pm.match(expr), Mul(Five, x))
 
   def test_multiplication_with_power(self) -> None:
-    expr = Mul(x, Pow(x, Const(2)))
-    self.assertEqual(self.pm.match(expr), Pow(x, Const(3)))
-    expr = Mul(Pow(x, Const(2)), x)
+    expr = Mul(x, Pow(x, Two))
+    self.assertEqual(self.pm.match(expr), Pow(x, Three))
+    expr = Mul(Pow(x, Two), x)
 
   def test_multiplication_of_two_powers(self) -> None:
-    expr = Mul(Pow(x, Const(3)), Pow(x, Const(2)))
-    self.assertEqual(self.pm.match(expr), Pow(x, Add(Const(3), Const(2))))
-    expr = Mul(Pow(x, Const(2)), Pow(x, Const(3)))
-    self.assertEqual(self.pm.match(expr), Pow(x, Add(Const(2), Const(3))))
+    expr = Mul(Pow(x, Three), Pow(x, Two))
+    self.assertEqual(self.pm.match(expr), Pow(x, Add(Three, Two)))
+    expr = Mul(Pow(x, Two), Pow(x, Three))
+    self.assertEqual(self.pm.match(expr), Pow(x, Add(Two, Three)))
 
   def test_nested_power(self) -> None:
-    expr = Pow(Pow(x, Const(2)), Const(3))
-    self.assertEqual(self.pm.match(expr), Pow(x, Mul(Const(2), Const(3))))
+    expr = Pow(Pow(x, Two), Three)
+    self.assertEqual(self.pm.match(expr), Pow(x, Mul(Two, Three)))
 
   def test_complex_number_with_zero_imaginary_part(self) -> None:
-    expr = Complex(x, Const(0))
+    expr = Complex(x, Zero)
     self.assertEqual(self.pm.match(expr), x)
 
   def test_correct_eval_on_patterns(self) -> None:

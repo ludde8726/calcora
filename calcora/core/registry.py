@@ -44,6 +44,7 @@ def is_expr(x: Any) -> TypeGuard[Expr]:
 
 class Dispatcher:
   _callback_fxn : Callable[[Expr], Expr] = lambda x: x
+  _run_callbacks : bool = True
 
   @staticmethod
   def typecast(x: ExprArgTypes) -> Expr:
@@ -52,10 +53,13 @@ class Dispatcher:
     elif isinstance(x, (float, int)): 
       n = Numeric(x)
       return FunctionRegistry.get("Const")(n) if n >= 0 else FunctionRegistry.get("Neg")(FunctionRegistry.get("Const")(abs(n)))
-    elif isinstance(x, (FunctionRegistry.get("Neg"), str, mpf, mpc)): 
+    elif isinstance(x, (str, mpf, mpc, complex)): 
       num = Numeric(x)
-      if num.imag: return FunctionRegistry.get("Neg")(num.real if num.real >= 0 else FunctionRegistry.get("Neg")(abs(num.real)), num.imag if num.imag >= 0 else FunctionRegistry.get("Neg")(abs(num.imag)))
-      else: return FunctionRegistry.get("Const")(num) if num >= 0 else FunctionRegistry.get("Const")(abs(num))
+      if num.imag: return FunctionRegistry.get("Complex")(
+        FunctionRegistry.get("Const")(num.real) if num.real >= 0 else FunctionRegistry.get("Neg")(FunctionRegistry.get("Const")(abs(num.real))), 
+        FunctionRegistry.get("Const")(num.imag) if num.imag >= 0 else FunctionRegistry.get("Neg")(FunctionRegistry.get("Const")(abs(num.imag)))
+        )
+      else: return FunctionRegistry.get("Const")(num) if num >= 0 else FunctionRegistry.get("Neg")(FunctionRegistry.get("Const")(abs(num)))
     else: raise TypeError(f"Invalid type {type(x)} for conversion to type Const")
 
   @staticmethod
@@ -65,14 +69,14 @@ class Dispatcher:
       return x
     arguments = [Dispatcher.typecast(x) if type_cast else validate(x) for x in args]
     op = FunctionRegistry.get(name)(*arguments)
-    return Dispatcher._callback_fxn(op) if run_callback else op
+    return Dispatcher._callback_fxn(op) if run_callback and Dispatcher._run_callbacks else op
 
   # Special ops
   @staticmethod
   def const(x: Union[NumericType, Numeric], run_callback: bool = True, type_cast: bool = True) -> Expr: 
     if type_cast: x = Numeric.numeric_cast(x)
     op = FunctionRegistry.get("Const")(x)
-    return Dispatcher._callback_fxn(op) if run_callback else op
+    return Dispatcher._callback_fxn(op) if run_callback and Dispatcher._run_callbacks else op
   @staticmethod
   def var(name: str) -> Expr: return FunctionRegistry.get("Var")(name)
   @staticmethod
@@ -80,7 +84,7 @@ class Dispatcher:
     if type_cast: real, imag = Dispatcher.typecast(real), Dispatcher.typecast(imag)
     if not (is_expr(real) and is_expr(imag)): raise TypeError(f"Creation of complex with arg of types '{real.__class__.__name__}' and '{imag.__class__.__name__}' is not allowed unless type_cast is set to True.")
     op = FunctionRegistry.get("Complex")(real, imag, representation=representation)
-    return Dispatcher._callback_fxn(op) if run_callback else op
+    return Dispatcher._callback_fxn(op) if run_callback and Dispatcher._run_callbacks else op
   
   # One arg ops
   @staticmethod
@@ -102,10 +106,12 @@ class Dispatcher:
   
   # "Fake" ops
   @staticmethod
-  def div(x: ExprArgTypes, y: ExprArgTypes, run_callback: bool = True, type_cast: bool = True) -> Expr: return Dispatcher.mul(x, Dispatcher.pow(y, Dispatcher.neg(1, run_callback=run_callback), run_callback=run_callback, type_cast=type_cast), run_callback=run_callback, type_cast=type_cast)
+  def div(x: ExprArgTypes, y: ExprArgTypes, run_callback: bool = True, type_cast: bool = True) -> Expr: return Dispatcher.mul(x, Dispatcher.pow(y, -1, run_callback=run_callback), run_callback=run_callback, type_cast=type_cast)
   @staticmethod
   def sub(x: ExprArgTypes, y: ExprArgTypes, run_callback: bool = True, type_cast: bool = True) -> Expr: return Dispatcher.add(x, Dispatcher.neg(y, run_callback=run_callback, type_cast=type_cast), run_callback=run_callback, type_cast=type_cast)
   @staticmethod
-  def ln(x: ExprArgTypes, run_callback: bool = True, type_cast: bool = True) -> Expr: return Dispatcher.log(x, ConstantRegistry.get("E"), run_callback=run_callback, type_cast=type_cast)
+  def ln(x: ExprArgTypes, run_callback: bool = True, type_cast: bool = True) -> Expr: return Dispatcher.log(x, ConstantRegistry.get("e"), run_callback=run_callback, type_cast=type_cast)
   @staticmethod
   def sqrt(x: ExprArgTypes, run_callback: bool = True, type_cast: bool = True) -> Expr: return Dispatcher.pow(x, Dispatcher.const(0.5, run_callback=run_callback), run_callback=run_callback, type_cast=type_cast)
+  @staticmethod
+  def tan(x: ExprArgTypes, run_callback: bool = True, type_cast: bool = True) -> Expr: return Dispatcher.div(Dispatcher.sin(x, run_callback=run_callback, type_cast=type_cast), Dispatcher.cos(x, run_callback=run_callback, type_cast=type_cast), run_callback=run_callback, type_cast=False)
